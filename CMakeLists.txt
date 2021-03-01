@@ -13,4 +13,6 @@ FILE( GLOB SRCS
  "src/*.cc" 
  "src/*.h" 
 )
+
+include_directories("${CMAKE_SOURCE_DIR}\\gmtl")
 ADD_EXECUTABLE(${PROJECT_NAME} ${SRCS} )
