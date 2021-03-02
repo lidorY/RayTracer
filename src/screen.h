@@ -7,6 +7,14 @@
 #include <vector>
 #include <array>
 
+
+
+struct Color {
+	uint8_t r;
+	uint8_t b;
+	uint8_t g;
+};
+
 class Screen {
 
 public:
@@ -32,21 +40,21 @@ public:
 	}
 
 
-	void ClearScreenColor(uint8_t b = 255, uint8_t g = 255, uint8_t r = 255) {
+	void ClearScreenColor(const Color& c = {255,255,255}) {
 		for (auto i = 0; i < height_; ++i) {
 			for (auto j = 0; j < width_; ++j) {
-				StorePixel(i, j, b, g, r);
+				StorePixel(i, j, c);
 			}
 		}
 	}
 
 	void StorePixel(std::size_t x, std::size_t y,
-		uint8_t b = 255, uint8_t g = 255, uint8_t r = 255) {
+		const Color& c = {255,255,255}) {
 		auto curr_buf = (screen_buffer_ + 1) % buffers_.size();
 
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = b;
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = g;
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = r;
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b;
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g;
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r;
 	}
 
 	uint8_t* GetScreenData() {
