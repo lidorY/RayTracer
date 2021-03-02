@@ -31,7 +31,16 @@ public:
 		SetBMPHeaderValues();
 	}
 
-	void StorePixel(std::size_t x, std::size_t y, std::size_t z,
+
+	void ClearScreenColor(uint8_t b = 255, uint8_t g = 255, uint8_t r = 255) {
+		for (auto i = 0; i < height_; ++i) {
+			for (auto j = 0; j < width_; ++j) {
+				StorePixel(i, j, b, g, r);
+			}
+		}
+	}
+
+	void StorePixel(std::size_t x, std::size_t y,
 		uint8_t b = 255, uint8_t g = 255, uint8_t r = 255) {
 		auto curr_buf = (screen_buffer_ + 1) % buffers_.size();
 
@@ -44,12 +53,10 @@ public:
 		return buffers_[screen_buffer_]->data();
 	}
 
-	void Swap() {
-		std::fill(buffers_[screen_buffer_]->begin(), buffers_[screen_buffer_]->end(), 0);
-		screen_buffer_ = (screen_buffer_ + 1) % buffers_.size();
-	}
+
 
 	void DrawScreen() {
+		Swap();
 		SetDIBitsToDevice(device,
 			0, 0, Width(), Height(),
 			0, 0, 0, Height(),
@@ -62,6 +69,12 @@ public:
 	std::size_t Height() { return height_; }
 
 private:
+
+	void Swap() {
+		std::fill(buffers_[screen_buffer_]->begin(), buffers_[screen_buffer_]->end(), 0);
+		screen_buffer_ = (screen_buffer_ + 1) % buffers_.size();
+	}
+
 	HDC device;
 	void SetBMPHeaderValues() {
 		ZeroMemory(&bmi_, sizeof(bmi_));
