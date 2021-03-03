@@ -51,7 +51,20 @@ public:
 
 	Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) {
 		Color res{ 255, 255, 255 };
-		auto normal = gmtl::Vec3d{};
+		gmtl::Vec3d normal = intersec_point - center_;
+		gmtl::normalize(normal);
+
+		gmtl::Vec3d light_dir = intersec_point - point_light;
+		gmtl::normalize(light_dir);
+
+		double kd = 1;
+		double ka = 0.5;
+		auto fctr = gmtl::dot(normal, light_dir);
+		//fctr = fctr * 1000000 - 999999;
+		res.r = std::clamp(148 * ka + kd * fctr * 255, 0.0, 255.0);
+		res.g = std::clamp(236 * ka + kd * fctr * 255, 0.0, 255.0);
+		res.b = std::clamp(195 * ka + kd * fctr * 255, 0.0, 255.0);
+
 		return res;
 	}
 
@@ -131,7 +144,7 @@ void Tracer(Screen& scr) {
 			// Test for collision
 			if (auto ip = sphr.TestCollision(ray)) {
 				// Collision detected
-				scr.StorePixel(x, y, sphr.Shade(gmtl::Vec3d{100, 100, 100}, ip.value()));
+				scr.StorePixel(x, y, sphr.Shade(gmtl::Vec3d{0, 600000, 0}, ip.value()));
 				// Send shadow/light feelers
 				// calculate res color based on light source
 			} 
