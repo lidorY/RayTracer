@@ -128,7 +128,7 @@ public:
 		view_plane_distance_(view_plane_distance)
 	{
 		aspect_ratio_ = static_cast<double>(scr_height) / static_cast<double>(scr_width);
-		double phy_width = 2 * view_plane_distance * std::tan(90 - (angle / 2));
+		double phy_width = -2 * view_plane_distance * std::tan((angle / 2));
 		double phy_height = aspect_ratio_ * phy_width;
 
 		pixel_width_ = phy_width / scr_width;
@@ -169,12 +169,13 @@ void Tracer(Screen& scr) {
 
 	std::vector<std::unique_ptr<Object>> objs;
 	
-	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 270, 270, 200 }, 100));
-	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 280, 100 }, 100));
+	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 5000, 7000, 10000 }, 2000));
+	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 5000, 5000, 1000 }, 2000));
+	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 280, 100 }, 100));
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 380, 0 },  .5f });
-	lights.push_back(Light{ gmtl::Vec3d{ 640, -380, 0 }, .2f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 12000, 0 },  1.f });
+	lights.push_back(Light{ gmtl::Vec3d{ 640, 0, 0 }, .2f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
