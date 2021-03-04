@@ -17,15 +17,24 @@ class PointLight {
 	gmtl::Vec3d center;
 };
 
+
+class Object {
+public:
+
+	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
+	virtual Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) = 0;
+
+};
 // Basic starting object
-class Sphere {
+class Sphere : public Object{
 public:
 	Sphere(gmtl::Vec3d center, float radius) :
 		center_(center),
 		radius_(radius)
 	{}
-	
-	std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const {
+
+
+	std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const override{
 		gmtl::Vec3d dir = r.p1 - r.p0;
 		gmtl::Vec3d L = center_ - r.p0;
 		gmtl::normalize(dir);
@@ -39,38 +48,44 @@ public:
 			return {};
 		}
 
-		auto t = (-b - std::sqrt(b * b - 4 * a * c)) / (2 * a);
+		auto t = (-b - sqrt((b * b) - 4 * a * c)) / (2 * a);
 
 		auto dx = r.p1[0] - r.p0[0];
 		auto dy = r.p1[1] - r.p0[1];
 		auto dz = r.p1[2] - r.p0[2];
 
-		return gmtl::Vec3d{ (r.p0[0] + t * dx), (r.p0[1] + t * dy), (r.p0[2] + t * dz) };
+		return gmtl::Vec3d{ (r.p0[0]), (r.p0[1]), (r.p0[2] + t) };
 		
 	}
 
-	Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) {
+	Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) override {
 		Color res{ 255, 255, 255 };
-		gmtl::Vec3d normal = intersec_point - center_;
-		gmtl::normalize(normal);
+		gmtl::Vec3d normal = (intersec_point - center_);
+		normal /= radius_;
 
 		gmtl::Vec3d light_dir = intersec_point - point_light;
 		gmtl::normalize(light_dir);
 
-		double kd = 1;
-		double ka = 0.5;
-		auto fctr = gmtl::dot(normal, light_dir);
-		//fctr = fctr * 1000000 - 999999;
-		res.r = std::clamp(148 * ka + kd * fctr * 255, 0.0, 255.0);
-		res.g = std::clamp(236 * ka + kd * fctr * 255, 0.0, 255.0);
-		res.b = std::clamp(195 * ka + kd * fctr * 255, 0.0, 255.0);
 
+		double kd = 1.2;
+		double ka = 0.3;
+
+		double fctr {0.0};
+		fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+	
+		res.r = std::clamp(148 * ka + kd * fctr * 255, 0.0, 255.0);
+		res.g = std::clamp(195 * ka + kd * fctr * 255, 0.0, 255.0);
+		res.b = std::clamp(236 * ka + kd * fctr * 255, 0.0, 255.0);
+		
+		
 		return res;
 	}
 
 private:
 	gmtl::Vec3d center_;
 	float radius_;
+
+	int num;
 };
 
 // Algorithm:
@@ -136,15 +151,14 @@ void Tracer(Screen& scr) {
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {
 			//TODO: define move semantics for Ray(avoid unecessary copy)
-			Ray ray;// = vfr.GetRayByPixel(x, y);
-			//ray.p0 = gmtl::Vec3d{ 0, 0, 0 };
+			Ray ray;
 			ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
 			ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
 
 			// Test for collision
 			if (auto ip = sphr.TestCollision(ray)) {
 				// Collision detected
-				scr.StorePixel(x, y, sphr.Shade(gmtl::Vec3d{0, 600000, 0}, ip.value()));
+				scr.StorePixel(x, y, sphr.Shade(gmtl::Vec3d{ 10, 0, 0}, ip.value()));
 				// Send shadow/light feelers
 				// calculate res color based on light source
 			} 
