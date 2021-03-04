@@ -14,8 +14,12 @@ struct Ray {
 	gmtl::Vec3d p1;
 };
 
-class PointLight {
-	gmtl::Vec3d center;
+
+struct Light {
+	Light(gmtl::Vec3d pos, float intensity) :
+		pos(pos), intensity(intensity) {}
+	gmtl::Vec3d pos;
+	float intensity;
 };
 
 
@@ -23,7 +27,7 @@ class Object {
 public:
 
 	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
-	virtual Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) = 0;
+	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
 
 };
 
@@ -34,7 +38,7 @@ public:
 		
 	}
 
-	Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) override {
+	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
 		
 	}
 
@@ -43,6 +47,9 @@ private:
 	gmtl::Vec3d max, min;
 
 };
+
+
+
 // Basic starting object
 class Sphere : public Object{
 public:
@@ -76,26 +83,29 @@ public:
 		
 	}
 
-	Color Shade(gmtl::Vec3d point_light, gmtl::Vec3d intersec_point) override {
-		Color res{ 255, 255, 255 };
-		gmtl::Vec3d normal = (intersec_point - center_);
-		normal /= radius_;
-
-		gmtl::Vec3d light_dir = point_light - intersec_point;
-		gmtl::normalize(light_dir);
-
-
+	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
 		double kd = 0.7;
 		double ka = 0.5;
+		Color res{ 0, 0, 0 };
+		for (auto&& light : point_lights) {
+			gmtl::Vec3d normal = (intersec_point - center_);
+			normal /= radius_;
 
-		double fctr {0.0};
-		fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
-	
-		res.r = std::clamp(148 * ka + kd * fctr * 255, 0.0, 255.0);
-		res.g = std::clamp(195 * ka + kd * fctr * 255, 0.0, 255.0);
-		res.b = std::clamp(236 * ka + kd * fctr * 255, 0.0, 255.0);
-		
-		
+			gmtl::Vec3d light_dir = light.pos - intersec_point;
+			gmtl::normalize(light_dir);
+
+			double fctr{ 0.0 };
+			fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+
+			res.r += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.g += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.b += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
+		}
+		// Add ambient light
+		res.r = std::clamp(148 * ka + res.r, 0.0, 255.0);
+		res.g = std::clamp(195 * ka + res.g, 0.0, 255.0);
+		res.b = std::clamp(236 * ka + res.b, 0.0, 255.0);
+
 		return res;
 	}
 
@@ -160,8 +170,11 @@ void Tracer(Screen& scr) {
 	std::vector<std::unique_ptr<Object>> objs;
 	
 	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 270, 270, 200 }, 100));
-	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 370, 300 }, 100));
-	
+	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 280, 100 }, 100));
+
+	std::vector<Light> lights;
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 380, 0 },  .5f });
+	lights.push_back(Light{ gmtl::Vec3d{ 640, -380, 0 }, .2f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
@@ -174,7 +187,7 @@ void Tracer(Screen& scr) {
 				// Test for collision
 				if (auto ip = obj->TestCollision(ray)) {
 					// Collision detected
-					scr.StorePixel(x, y, obj->Shade(gmtl::Vec3d{ 0, 380, 0 }, ip.value()));
+					scr.StorePixel(x, y, obj->Shade(lights , ip.value()));
 				}
 			}
 		}
