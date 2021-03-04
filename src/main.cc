@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <memory>
 #include <optional>
+#include <vector>
 
 // Math includes
 #include <gmtl\gmtl.h>
@@ -106,23 +107,27 @@ private:
 };
 
 void Tracer(Screen& scr) {
-	//ViewFrustum vfr{scr.Width(), scr.Height(), 60.0, 1000.0};
+	
+	std::vector<std::unique_ptr<Object>> objs;
+	
+	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 270, 270, 200 }, 100));
+	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 370, 300 }, 100));
+	
 
-	// TODO: refine the definition in order to avoid near/far plane cliping problems
-	Sphere sphr { {270, 270, 200}, 100 };
+	for (auto&& obj : objs) {
+		for (auto y = 0; y < scr.Height(); ++y) {
+			for (auto x = 0; x < scr.Width(); ++x) {
+				//TODO: define move semantics for Ray(avoid unecessary copy)
+				Ray ray;
+				ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
+				ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
 
-	for (auto y = 0; y < scr.Height(); ++y) {
-		for (auto x = 0; x < scr.Width(); ++x) {
-			//TODO: define move semantics for Ray(avoid unecessary copy)
-			Ray ray;
-			ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
-			ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
-
-			// Test for collision
-			if (auto ip = sphr.TestCollision(ray)) {
-				// Collision detected
-				scr.StorePixel(x, y, sphr.Shade(gmtl::Vec3d{ 10, 0, -50}, ip.value()));
-			} 
+				// Test for collision
+				if (auto ip = obj->TestCollision(ray)) {
+					// Collision detected
+					scr.StorePixel(x, y, obj->Shade(gmtl::Vec3d{ 10, 0, -50 }, ip.value()));
+				}
+			}
 		}
 	}
 }
