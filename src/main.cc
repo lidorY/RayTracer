@@ -81,12 +81,12 @@ public:
 		gmtl::Vec3d normal = (intersec_point - center_);
 		normal /= radius_;
 
-		gmtl::Vec3d light_dir = intersec_point - point_light;
+		gmtl::Vec3d light_dir = point_light - intersec_point;
 		gmtl::normalize(light_dir);
 
 
-		double kd = 1.1;
-		double ka = 0.3;
+		double kd = 0.7;
+		double ka = 0.5;
 
 		double fctr {0.0};
 		fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
@@ -106,12 +106,61 @@ private:
 	int num;
 };
 
-void Tracer(Screen& scr) {
+
+class ViewFrustum {
+public:
+	ViewFrustum(std::size_t scr_width, 
+		std::size_t scr_height, double angle,
+		double view_plane_distance) :
+		scr_width_(scr_width),
+		scr_height_(scr_height),
+		angle_(angle),
+		view_plane_distance_(view_plane_distance)
+	{
+		aspect_ratio_ = static_cast<double>(scr_height) / static_cast<double>(scr_width);
+		double phy_width = 2 * view_plane_distance * std::tan(90 - (angle / 2));
+		double phy_height = aspect_ratio_ * phy_width;
+
+		pixel_width_ = phy_width / scr_width;
+		pixel_height_ = phy_height / scr_height;
+	}
+
+	Ray GetRayByPixel(int x, int y) {
+		// Zero terminated indexing.(staring from x/y=0)
+		Ray res;
 	
+		// For simplicity I'm setting the "Camera" to the world origin (0,0,0)
+		res.p1 = {
+			(x * pixel_width_) + (pixel_width_ / 2.f),
+			(y * pixel_height_) + (pixel_height_ / 2.f),
+			0.3 };
+		res.p0 = { 
+			(x * pixel_width_)  + (pixel_width_/2.f), 
+			(y * pixel_height_) + (pixel_height_/2.f),
+			view_plane_distance_ };
+		return res;
+	}
+
+private:
+
+	std::size_t scr_width_;
+	std::size_t scr_height_;
+	double aspect_ratio_;
+	double angle_;
+
+	double view_plane_distance_;
+	double pixel_width_;
+	double pixel_height_;
+};
+
+
+void Tracer(Screen& scr) {
+	ViewFrustum vfr{scr.Width(), scr.Height(), 60.0, 1000.0};
+
 	std::vector<std::unique_ptr<Object>> objs;
 	
 	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 270, 270, 200 }, 100));
-	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 370, 300 }, 100));
+	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 370, 300 }, 100));
 	
 
 	for (auto&& obj : objs) {
@@ -119,13 +168,13 @@ void Tracer(Screen& scr) {
 			for (auto x = 0; x < scr.Width(); ++x) {
 				//TODO: define move semantics for Ray(avoid unecessary copy)
 				Ray ray;
-				ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
-				ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
-
+				//ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
+				//ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
+				ray = vfr.GetRayByPixel(x,y);
 				// Test for collision
 				if (auto ip = obj->TestCollision(ray)) {
 					// Collision detected
-					scr.StorePixel(x, y, obj->Shade(gmtl::Vec3d{ 10, 0, -50 }, ip.value()));
+					scr.StorePixel(x, y, obj->Shade(gmtl::Vec3d{ 0, 380, 0 }, ip.value()));
 				}
 			}
 		}
