@@ -35,33 +35,107 @@ struct Light {
 
 class Object {
 public:
-	Object(int spec, float ka, float kd) :
+	Object(int spec, float ka, float kd, std::string name) :
 		specularity_coef_(spec),
 		ka_(ka),
-		kd_(kd)
+		kd_(kd),
+		name(name)
 	{}
 	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
-	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
+
+
+	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point, 
+		const std::vector<std::unique_ptr<Object>>& colliders)  {
+		Color res{ 0, 0, 0 };
+		for (auto&& light : point_lights) {
+			gmtl::Vec3d normal = calcNormal(intersec_point);
+			gmtl::normalize(normal);
+
+			gmtl::Vec3d light_dir = light.pos - intersec_point;
+			gmtl::normalize(light_dir);
+
+			double fctr{ 0.0 };
+			bool occluded = false;
+
+			// dumb ineffecient way to implement hard shdows
+			for (auto&& o : colliders) {
+				if (o.get() == this) { continue; }
+				auto p = o->TestCollision({ intersec_point, light_dir });
+				if (p.has_value()) {
+					occluded = true;
+					break;
+				}
+			}
+			if (!occluded) {
+				fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+			}
+			fctr = std::pow(fctr, specularity_coef_);
+
+			res.r += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.g += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.b += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+		}
+		// Add ambient light
+		res.r = std::clamp(148 * ka_ + res.r, 0.0, 255.0);
+		res.g = std::clamp(195 * ka_ + res.g, 0.0, 255.0);
+		res.b = std::clamp(236 * ka_ + res.b, 0.0, 255.0);
+
+		//return { 255, 255, 255 };
+		return res;
+	}
+
+	virtual ~Object() {}
 
 protected:
+	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) = 0;
+
 	int specularity_coef_;
 	double kd_;
 	double ka_;
+
+	// debugging purpose
+	std::string name;
 };
 
 static std::vector<std::unique_ptr<Object>> objs;
 
 
-class Plane : Object {
-
-	Plane(gmtl::Vec3d center, float radius, int spec,
+class Plane : public Object {
+public:
+	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal, int spec,
 		float ka, float kd) :
-		Object(spec, ka, kd){}
+		Object(spec, ka, kd, "Plane"),
+		origin_(origin),
+		normal_(normal)
+	{
+		gmtl::normalize(normal_);
+	}
 
-	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
-	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
+	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const {
+		
+		double denom = gmtl::dot(r.dir, normal_);
+		if (std::abs(denom) > 0.1) {
+			// Avoid zero division
+			gmtl::Vec3d diff = origin_- r.origin;
+			double t = gmtl::dot(diff, normal_) / denom;
+			if (t > 0) {
+				return gmtl::Vec3d{
+					r.origin[0] + t * r.dir[0],
+					r.origin[1] + t * r.dir[1],
+					r.origin[2] + t * r.dir[2]
+				};
+			}
+		}
+		return {};
+	}
 
 private:
+	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
+		return normal_;
+	}
+
+	gmtl::Vec3d origin_;
+	gmtl::Vec3d normal_;
 };
 
 // Basic starting object
@@ -69,7 +143,7 @@ class Sphere : public Object{
 public:
 	Sphere(gmtl::Vec3d center, float radius, int spec,
 		float ka, float kd) :
-		Object(spec, ka, kd),
+		Object(spec, ka, kd, "Sphere"),
 		center_(center),
 		radius_(radius)
 	{}
@@ -92,9 +166,9 @@ public:
 		auto radius2 = std::pow(radius_, 2);
 		gmtl::Vec3d L = center_ - r.origin;
 		float tca = gmtl::dot(L, r.dir);
-		if (tca < 0) return {};
+		if (tca < 0) return std::nullopt;
 		float d2 = gmtl::dot(L, L) - std::pow(tca,2);
-		if (d2 > radius2) return {};
+		if (d2 > radius2) return std::nullopt;
 		float thc = std::sqrt(radius2 - d2);
 		auto t = tca - thc;
 
@@ -105,48 +179,11 @@ public:
 		};
 	}
 
-	gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
-		// TODO: make sure this is indeed intersection point..
-	}
-
-	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
-		Color res{ 0, 0, 0 };
-		for (auto&& light : point_lights) {
-			gmtl::Vec3d normal = (intersec_point - center_);
-			gmtl::normalize(normal);
-
-			gmtl::Vec3d light_dir = light.pos - intersec_point;
-			gmtl::normalize(light_dir);
-
-			double fctr{ 0.0 };
-			bool occluded = false;
-
-			// dumb ineffecient way to implement hard shdows
-			for (auto&& o : objs) {
-				auto p = o->TestCollision({ intersec_point, light_dir });
-				if (p.has_value()) {
-					occluded = true;
-					break;
-				}
-			}
-			if (!occluded) {
-				fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
-			}
-			fctr = std::pow(fctr, specularity_coef_);
-
-			res.r += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.g += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.b += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
-		}
-		// Add ambient light
-		res.r = std::clamp(148 * ka_ + res.r, 0.0, 255.0);
-		res.g = std::clamp(195 * ka_ + res.g, 0.0, 255.0);
-		res.b = std::clamp(236 * ka_ + res.b, 0.0, 255.0);
-
-		return res;
-	}
-
 private:
+	gmtl::Vec3d calcNormal(gmtl::Vec3d point) override {
+		return point - center_;
+	}
+
 	gmtl::Vec3d center_;
 	double radius_;
 
@@ -201,16 +238,18 @@ private:
 void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
-	
+	objs.push_back(std::make_unique<Plane>(
+		gmtl::Vec3d{-1, -3, -1}, gmtl::Vec3d{0, 1, 0}, 1, .3f, 1.f
+		));
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 0, 25 }, 2, 1, 0.3f, 1));
-	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 0, 13}, 2, 1, 0.3f, 1));
+	//objs.push_back(std::make_unique<Sphere>(
+	//	gmtl::Vec3d{ 0, 0, 13}, 2, 1.1, 0.3f, 1));
 
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ -7, 3, 8 },  .8f });
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 3, 8 }, .2f });
+	lights.push_back(Light{ gmtl::Vec3d{ 4, 7, 25 },  .8f });
+	//lights.push_back(Light{ gmtl::Vec3d{ 0, -3, 8 }, .2f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
@@ -221,7 +260,7 @@ void Tracer(Screen& scr) {
 				// Test for collision
 				if (auto ip = obj->TestCollision(ray)) {
 					// Collision detected
-					scr.StorePixel(x, y, obj->Shade(lights , ip.value()));
+					scr.StorePixel(x, y, obj->Shade(lights , ip.value(), objs));
 				}
 			}
 		}
