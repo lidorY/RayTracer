@@ -10,8 +10,17 @@
 
 
 struct Ray {
-	gmtl::Vec3d p0;
-	gmtl::Vec3d p1;
+	Ray(gmtl::Vec3d p0, gmtl::Vec3d p1) :
+		origin(p0) {
+		dir = (p1 - p0);
+		gmtl::normalize(dir);
+	}
+	Ray(Ray&& r) {
+		origin = r.origin;
+		dir = r.dir;
+	}
+	gmtl::Vec3d origin;
+	gmtl::Vec3d dir;
 };
 
 
@@ -25,77 +34,73 @@ struct Light {
 
 class Object {
 public:
-
+	Object(int spec) :
+		specularity_coef_(spec) {}
 	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
 	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
 
+protected:
+	int specularity_coef_;
 };
-
-class Cube : public Object{
-
-public:
-	std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const override {
-		
-	}
-
-	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
-		
-	}
-
-private:
-	gmtl::Vec3d bounds[8];
-	gmtl::Vec3d max, min;
-
-};
-
 
 
 // Basic starting object
 class Sphere : public Object{
 public:
-	Sphere(gmtl::Vec3d center, float radius) :
+	Sphere(gmtl::Vec3d center, float radius, int spec) :
+		Object(spec),
 		center_(center),
 		radius_(radius)
 	{}
 
 
 	std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const override{
-		gmtl::Vec3d dir = r.p1 - r.p0;
-		gmtl::Vec3d L = center_ - r.p0;
-		gmtl::normalize(dir);
 
-		auto a = gmtl::dot(dir, dir);
-		auto b = 2 * gmtl::dot(L, dir);
-		auto c = gmtl::dot(L, L) - radius_ * radius_;
+		//gmtl::Vec3d L = center_ - r.origin;
+		//
+		//double a = gmtl::dot(r.dir, r.dir);
+		//double b = 2 * gmtl::dot(L, r.dir);
+		//double c = gmtl::dot(L, L) - std::pow(radius_, 2);
 
-		auto discriminant = b * b - 4 * a * c;
-		if (discriminant < 0) {
-			return {};
-		}
+		//auto discriminant = std::pow(b, 2) - 4 * a * c;
+		//if (discriminant < 0) {
+		//	return {};
+		//}
 
-		auto t = (-b - sqrt((b * b) - 4 * a * c)) / (2 * a);
+		//auto t = (-b - sqrt((b * b) - 4 * a * c)) / (2 * a);
+		auto radius2 = std::pow(radius_, 2);
+		gmtl::Vec3d L = center_ - r.origin;
+		float tca = gmtl::dot(L, r.dir);
+		if (tca < 0) return {};
+		float d2 = gmtl::dot(L, L) - std::pow(tca,2);
+		if (d2 > radius2) return {};
+		float thc = std::sqrt(radius2 - d2);
+		auto t = tca - thc;
 
-		auto dx = r.p1[0] - r.p0[0];
-		auto dy = r.p1[1] - r.p0[1];
-		auto dz = r.p1[2] - r.p0[2];
-
-		return gmtl::Vec3d{ (r.p0[0]), (r.p0[1]), (r.p0[2] + t) };
-		
+		return gmtl::Vec3d{
+			(r.origin[0] + t * r.dir[0]),
+			(r.origin[1] + t * r.dir[1]),
+			(r.origin[2] + t * r.dir[2])
+		};
 	}
 
 	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
-		double kd = 0.7;
-		double ka = 0.5;
+		double kd = 1;
+		double ka = 0.3;
 		Color res{ 0, 0, 0 };
 		for (auto&& light : point_lights) {
 			gmtl::Vec3d normal = (intersec_point - center_);
-			normal /= radius_;
+			gmtl::normalize(normal);
 
 			gmtl::Vec3d light_dir = light.pos - intersec_point;
 			gmtl::normalize(light_dir);
 
 			double fctr{ 0.0 };
-			fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+			auto p = TestCollision({ intersec_point, light_dir });
+			if (!p.has_value()) {
+				fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+			}
+			fctr = std::pow(fctr, specularity_coef_);
 
 			res.r += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
 			res.g += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
@@ -111,13 +116,13 @@ public:
 
 private:
 	gmtl::Vec3d center_;
-	float radius_;
+	double radius_;
 
-	int num;
 };
 
 
 class ViewFrustum {
+	const double TO_RAD = 3.141592653589793 / 180.;
 public:
 	ViewFrustum(std::size_t scr_width, 
 		std::size_t scr_height, double angle,
@@ -128,27 +133,24 @@ public:
 		view_plane_distance_(view_plane_distance)
 	{
 		aspect_ratio_ = static_cast<double>(scr_height) / static_cast<double>(scr_width);
-		double phy_width = -2 * view_plane_distance * std::tan((angle / 2));
+		
+		double phy_width = 2 * 1 * std::tan( 0.5 * angle * TO_RAD);
 		double phy_height = aspect_ratio_ * phy_width;
 
 		pixel_width_ = phy_width / scr_width;
 		pixel_height_ = phy_height / scr_height;
 	}
 
-	Ray GetRayByPixel(int x, int y) {
+	Ray&& GetRayByPixel(int x, int y) {
 		// Zero terminated indexing.(staring from x/y=0)
-		Ray res;
-	
-		// For simplicity I'm setting the "Camera" to the world origin (0,0,0)
-		res.p1 = {
-			(x * pixel_width_) + (pixel_width_ / 2.f),
-			(y * pixel_height_) + (pixel_height_ / 2.f),
-			0.3 };
-		res.p0 = { 
-			(x * pixel_width_)  + (pixel_width_/2.f), 
-			(y * pixel_height_) + (pixel_height_/2.f),
-			view_plane_distance_ };
-		return res;
+		return {
+			gmtl::Vec3d{0, 0, 0},
+			gmtl::Vec3d{
+				(x + 0.5) * pixel_width_,
+				(y + 0.5) * pixel_height_,
+				1
+			}
+		};
 	}
 
 private:
@@ -165,26 +167,28 @@ private:
 
 
 void Tracer(Screen& scr) {
-	ViewFrustum vfr{scr.Width(), scr.Height(), 60.0, 1000.0};
+	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
 	std::vector<std::unique_ptr<Object>> objs;
 	
-	objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 5000, 7000, 10000 }, 2000));
-	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 5000, 5000, 1000 }, 2000));
-	//objs.push_back(std::make_unique<Sphere>(gmtl::Vec3d{ 370, 280, 100 }, 100));
+	objs.push_back(std::make_unique<Sphere>(
+		gmtl::Vec3d{ 6, 4, 23 }, 2, 1));
+	objs.push_back(std::make_unique<Sphere>(
+		gmtl::Vec3d{ 0, 0, 13}, 2, 4));
+
+
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 12000, 0 },  1.f });
-	lights.push_back(Light{ gmtl::Vec3d{ 640, 0, 0 }, .2f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 10, 0 },  .8f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, -10, 0 }, .2f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
 			for (auto x = 0; x < scr.Width(); ++x) {
 				//TODO: define move semantics for Ray(avoid unecessary copy)
-				Ray ray;
-				//ray.p0 = gmtl::Vec3d{ (float)(x), (float)(y), 0.3 };
-				//ray.p1 = gmtl::Vec3d{ (float)(x), (float)(y), 1000 };
-				ray = vfr.GetRayByPixel(x,y);
+				Ray ray = vfr.GetRayByPixel(
+					x - (scr.Width()/2), 
+					y - (scr.Height()/2));
 				// Test for collision
 				if (auto ip = obj->TestCollision(ray)) {
 					// Collision detected
