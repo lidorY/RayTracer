@@ -51,6 +51,19 @@ protected:
 
 static std::vector<std::unique_ptr<Object>> objs;
 
+
+class Plane : Object {
+
+	Plane(gmtl::Vec3d center, float radius, int spec,
+		float ka, float kd) :
+		Object(spec, ka, kd){}
+
+	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
+	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
+
+private:
+};
+
 // Basic starting object
 class Sphere : public Object{
 public:
@@ -90,6 +103,10 @@ public:
 			(r.origin[1] + t * r.dir[1]),
 			(r.origin[2] + t * r.dir[2])
 		};
+	}
+
+	gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
+		// TODO: make sure this is indeed intersection point..
 	}
 
 	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
