@@ -9,6 +9,7 @@
 #include "screen.h"
 
 
+
 struct Ray {
 	Ray(gmtl::Vec3d p0, gmtl::Vec3d p1) :
 		origin(p0) {
@@ -34,21 +35,28 @@ struct Light {
 
 class Object {
 public:
-	Object(int spec) :
-		specularity_coef_(spec) {}
+	Object(int spec, float ka, float kd) :
+		specularity_coef_(spec),
+		ka_(ka),
+		kd_(kd)
+	{}
 	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
 	virtual Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) = 0;
 
 protected:
 	int specularity_coef_;
+	double kd_;
+	double ka_;
 };
 
+static std::vector<std::unique_ptr<Object>> objs;
 
 // Basic starting object
 class Sphere : public Object{
 public:
-	Sphere(gmtl::Vec3d center, float radius, int spec) :
-		Object(spec),
+	Sphere(gmtl::Vec3d center, float radius, int spec,
+		float ka, float kd) :
+		Object(spec, ka, kd),
 		center_(center),
 		radius_(radius)
 	{}
@@ -85,8 +93,6 @@ public:
 	}
 
 	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point) override {
-		double kd = 1;
-		double ka = 0.3;
 		Color res{ 0, 0, 0 };
 		for (auto&& light : point_lights) {
 			gmtl::Vec3d normal = (intersec_point - center_);
@@ -96,20 +102,29 @@ public:
 			gmtl::normalize(light_dir);
 
 			double fctr{ 0.0 };
-			auto p = TestCollision({ intersec_point, light_dir });
-			if (!p.has_value()) {
+			bool occluded = false;
+
+			// dumb ineffecient way to implement hard shdows
+			for (auto&& o : objs) {
+				auto p = o->TestCollision({ intersec_point, light_dir });
+				if (p.has_value()) {
+					occluded = true;
+					break;
+				}
+			}
+			if (!occluded) {
 				fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
 			}
 			fctr = std::pow(fctr, specularity_coef_);
 
-			res.r += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.g += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.b += std::clamp((kd * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.r += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.g += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+			res.b += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
 		}
 		// Add ambient light
-		res.r = std::clamp(148 * ka + res.r, 0.0, 255.0);
-		res.g = std::clamp(195 * ka + res.g, 0.0, 255.0);
-		res.b = std::clamp(236 * ka + res.b, 0.0, 255.0);
+		res.r = std::clamp(148 * ka_ + res.r, 0.0, 255.0);
+		res.g = std::clamp(195 * ka_ + res.g, 0.0, 255.0);
+		res.b = std::clamp(236 * ka_ + res.b, 0.0, 255.0);
 
 		return res;
 	}
@@ -169,23 +184,20 @@ private:
 void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
-	std::vector<std::unique_ptr<Object>> objs;
 	
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 6, 4, 23 }, 2, 1));
+		gmtl::Vec3d{ 4, 0, 25 }, 2, 1, 0.3f, 1));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 0, 13}, 2, 4));
-
+		gmtl::Vec3d{ 0, 0, 13}, 2, 1, 0.3f, 1));
 
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 10, 0 },  .8f });
-	lights.push_back(Light{ gmtl::Vec3d{ 0, -10, 0 }, .2f });
+	lights.push_back(Light{ gmtl::Vec3d{ -7, 3, 8 },  .8f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 3, 8 }, .2f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
 			for (auto x = 0; x < scr.Width(); ++x) {
-				//TODO: define move semantics for Ray(avoid unecessary copy)
 				Ray ray = vfr.GetRayByPixel(
 					x - (scr.Width()/2), 
 					y - (scr.Height()/2));
