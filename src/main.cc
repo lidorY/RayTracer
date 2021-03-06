@@ -41,7 +41,8 @@ public:
 		kd_(kd),
 		name(name)
 	{}
-	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const = 0;
+
+	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
 
 
 	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point, 
@@ -62,8 +63,12 @@ public:
 				if (o.get() == this) { continue; }
 				auto p = o->TestCollision({ intersec_point, light.pos });
 				if (p.has_value()) {
-					occluded = true;
-					break;
+					//if (p.value() < 1 && p.value() > 0) {
+						// Making sure the object is between the intersection and the light source..
+						// p bigger than 1 means that we might intersect but wer'e not in the way of the light ray
+						occluded = true;
+						//break;
+					//}
 				}
 			}
 			if (!occluded) {
@@ -111,22 +116,23 @@ public:
 		gmtl::normalize(normal_);
 	}
 
-	virtual std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const {
+	virtual std::optional<double> TestCollision(const Ray& r) const {
 		
 		double denom = gmtl::dot(r.dir, normal_);
-		if (std::abs(denom) > 0.1) {
+		if (std::abs(denom) > 0.08) {
 			// Avoid zero division
 			gmtl::Vec3d diff = origin_- r.origin;
 			double t = gmtl::dot(diff, normal_) / denom;
 			if (t > 0) {
-				return gmtl::Vec3d{
+				return t;
+				/*return gmtl::Vec3d{
 					r.origin[0] + t * r.dir[0],
 					r.origin[1] + t * r.dir[1],
 					r.origin[2] + t * r.dir[2]
-				};
+				};*/
 			}
 		}
-		return {};
+		return std::nullopt;
 	}
 
 private:
@@ -149,7 +155,7 @@ public:
 	{}
 
 
-	std::optional<gmtl::Vec3d> TestCollision(const Ray& r) const override{
+	std::optional<double> TestCollision(const Ray& r) const override{
 
 		//gmtl::Vec3d L = center_ - r.origin;
 		//
@@ -163,20 +169,20 @@ public:
 		//}
 
 		//auto t = (-b - sqrt((b * b) - 4 * a * c)) / (2 * a);
-		auto radius2 = std::pow(radius_, 2);
+		double radius2 = std::pow(radius_, 2);
 		gmtl::Vec3d L = center_ - r.origin;
-		float tca = gmtl::dot(L, r.dir);
+		double tca = gmtl::dot(L, r.dir);
 		if (tca < 0) return std::nullopt;
-		float d2 = gmtl::dot(L, L) - std::pow(tca,2);
+		double d2 = gmtl::dot(L, L) - std::pow(tca,2);
 		if (d2 > radius2) return std::nullopt;
-		float thc = std::sqrt(radius2 - d2);
-		auto t = tca - thc;
-
-		return gmtl::Vec3d{
+		double thc = std::sqrt(radius2 - d2);
+		double t = tca - thc;
+		return t;
+		/*return gmtl::Vec3d{
 			(r.origin[0] + t * r.dir[0]),
 			(r.origin[1] + t * r.dir[1]),
 			(r.origin[2] + t * r.dir[2])
-		};
+		};*/
 	}
 
 private:
@@ -242,9 +248,9 @@ void Tracer(Screen& scr) {
 		gmtl::Vec3d{0, -3, 0}, gmtl::Vec3d{0, 1, 0}, 1, .3f, 1.f
 		));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 4, 4, 25 }, 2, 1, 0.3f, 1.f));
+		gmtl::Vec3d{ 4, 2, 20 }, 1, 1, 0.3f, 1.f));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 0, 13}, 2, 1, 0.3f, 1.f));
+		gmtl::Vec3d{ 0, 0, 13}, 1, 1, 0.3f, 1.f));
 
 
 	std::vector<Light> lights;
@@ -260,7 +266,9 @@ void Tracer(Screen& scr) {
 				// Test for collision
 				if (auto ip = obj->TestCollision(ray)) {
 					// Collision detected
-					scr.StorePixel(x, y, obj->Shade(lights , ip.value(), objs));
+					auto t = ip.value();
+					gmtl::Vec3d intersection_point = ray.origin + ray.dir * t;
+					scr.StorePixel(x, y, obj->Shade(lights , intersection_point, objs));
 				}
 			}
 		}
