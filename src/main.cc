@@ -60,7 +60,7 @@ public:
 			// dumb ineffecient way to implement hard shdows
 			for (auto&& o : colliders) {
 				if (o.get() == this) { continue; }
-				auto p = o->TestCollision({ intersec_point, light_dir });
+				auto p = o->TestCollision({ intersec_point, light.pos });
 				if (p.has_value()) {
 					occluded = true;
 					break;
@@ -239,17 +239,17 @@ void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
 	objs.push_back(std::make_unique<Plane>(
-		gmtl::Vec3d{-1, -3, -1}, gmtl::Vec3d{0, 1, 0}, 1, .3f, 1.f
+		gmtl::Vec3d{0, -3, 0}, gmtl::Vec3d{0, 1, 0}, 1, .3f, 1.f
 		));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 4, 0, 25 }, 2, 1, 0.3f, 1));
-	//objs.push_back(std::make_unique<Sphere>(
-	//	gmtl::Vec3d{ 0, 0, 13}, 2, 1.1, 0.3f, 1));
+		gmtl::Vec3d{ 4, 4, 25 }, 2, 1, 0.3f, 1.f));
+	objs.push_back(std::make_unique<Sphere>(
+		gmtl::Vec3d{ 0, 0, 13}, 2, 1, 0.3f, 1.f));
 
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ 4, 7, 25 },  .8f });
-	//lights.push_back(Light{ gmtl::Vec3d{ 0, -3, 8 }, .2f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 18 },  .8f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 3 }, .6f });
 
 	for (auto&& obj : objs) {
 		for (auto y = 0; y < scr.Height(); ++y) {
