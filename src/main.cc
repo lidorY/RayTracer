@@ -247,14 +247,14 @@ private:
 void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
-	objs.push_back(std::make_unique<Plane>(
-		gmtl::Vec3d{0, -3, 0}, gmtl::Vec3d{0, 1, 0}, 1, .3f, 1.f
-		));
+	
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 2, 20 }, 1, 1, 0.3f, 1.f));
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 0, 0, 13}, 1, 1, 0.3f, 1.f));
-
+	objs.push_back(std::make_unique<Plane>(
+		gmtl::Vec3d{ 0, -3, 0 }, gmtl::Vec3d{ 0, 1, 0 }, 1, .3f, 1.f
+		));
 
 	std::vector<Light> lights;
 	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 18 },  .8f });
@@ -271,7 +271,9 @@ void Tracer(Screen& scr) {
 					// Collision detected
 					auto t = ip.value();
 					gmtl::Vec3d intersection_point = ray.origin + ray.dir * t;
-					scr.StorePixel(x, y, obj->Shade(lights , intersection_point, objs));
+
+					uint8_t z_val = (intersection_point[2] / 1000.0) * 255;
+					scr.StorePixel(x, y, z_val, obj->Shade(lights , intersection_point, objs));
 				}
 			}
 		}

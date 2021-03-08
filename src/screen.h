@@ -29,6 +29,10 @@ public:
 		std::fill(buffers_[0]->begin(), buffers_[0]->end(), 0);
 		std::fill(buffers_[1]->begin(), buffers_[1]->end(), 0);
 
+		// Init depth buffer
+		depth_buffer_.resize(width * height);
+		std::fill(depth_buffer_.begin(), depth_buffer_.end(), 0);
+
 		// Setting BMP header values
 		SetBMPHeaderValues();
 	}
@@ -37,18 +41,33 @@ public:
 	void ClearScreenColor(const Color& c = {255,255,255}) {
 		for (auto i = 0; i < height_; ++i) {
 			for (auto j = 0; j < width_; ++j) {
-				StorePixel(i, j, c);
+				StorePixel(i, j, 0, c);
 			}
 		}
 	}
 
-	void StorePixel(std::size_t x, std::size_t y,
+	void StorePixel(std::size_t x, std::size_t y, uint8_t z,
 		const Color& c = {255,255,255}) {
 		auto curr_buf = (screen_buffer_ + 1) % buffers_.size();
 
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b();
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g();
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r();
+		if (depth_buffer_[y * width_ + x] < z) {
+			// We change the pixel value only if its closer to the viewer
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b();
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g();
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r();
+			depth_buffer_[y * width_ + x] = z;
+			//DEBUG
+			//SetPixel(device, x, 512 - y, COLORREF(RGB(255, 255, 255)));
+		}
+		if (depth_buffer_[y * width_ + x] == z) {
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = max(c.b(), (*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0]);
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = max(c.g(), (*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1]);
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = max(c.r(), (*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2]);
+		}
+
+		//(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b();
+		//(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g();
+		//(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r();
 	}
 
 	uint8_t* GetScreenData() {
@@ -89,6 +108,8 @@ private:
 		h.biCompression = BI_RGB;
 		h.biSizeImage = Width() * Height();
 	}
+
+	std::vector<uint8_t> depth_buffer_;
 
 	std::size_t screen_buffer_;
 	std::array<std::unique_ptr<std::vector<uint8_t>>, 2> buffers_;
