@@ -6,6 +6,7 @@
 // Math includes
 #include <gmtl\gmtl.h>
 
+#include"color.h"
 #include "screen.h"
 
 
@@ -76,14 +77,16 @@ public:
 			}
 			fctr = std::pow(fctr, specularity_coef_);
 
-			res.r += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.g += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
-			res.b += std::clamp((kd_ * fctr * 255) * light.intensity, 0.0, 255.0);
+
+			res.r(res.r() + (kd_ * fctr * 255) * light.intensity);
+			res.g(res.g() + (kd_ * fctr * 255) * light.intensity);
+			res.b(res.b() + (kd_ * fctr * 255) * light.intensity);
 		}
+
 		// Add ambient light
-		res.r = std::clamp(148 * ka_ + res.r, 0.0, 255.0);
-		res.g = std::clamp(195 * ka_ + res.g, 0.0, 255.0);
-		res.b = std::clamp(236 * ka_ + res.b, 0.0, 255.0);
+		res.r(148 * ka_ + res.r());
+		res.g(195 * ka_ + res.g());
+		res.b(236 * ka_ + res.b());
 
 		//return { 255, 255, 255 };
 		return res;
@@ -280,7 +283,7 @@ int main() {
 	HDC consoleDC = GetDC(GetConsoleWindow());
 	// Define on the free store in order to enable large data storage
 	std::unique_ptr screen = std::make_unique<Screen>(640, 640, consoleDC);
-	Color clear_color = { 148, 236, 195 };
+	Color clear_color = { 148, 195, 236 };
     screen->ClearScreenColor(clear_color);
 
 	Tracer(*screen.get());

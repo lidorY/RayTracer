@@ -7,13 +7,7 @@
 #include <vector>
 #include <array>
 
-
-
-struct Color {
-	double r;
-	double b;
-	double g;
-};
+#include "color.h"
 
 class Screen {
 
@@ -52,9 +46,9 @@ public:
 		const Color& c = {255,255,255}) {
 		auto curr_buf = (screen_buffer_ + 1) % buffers_.size();
 
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b;
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g;
-		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r;
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b();
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g();
+		(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r();
 	}
 
 	uint8_t* GetScreenData() {
