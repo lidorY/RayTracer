@@ -36,11 +36,12 @@ struct Light {
 
 class Object {
 public:
-	Object(int spec, float ka, float kd, std::string name) :
+	Object(int spec, float ka, float kd, Color diffuse_color, std::string name) :
 		specularity_coef_(spec),
 		ka_(ka),
 		kd_(kd),
-		name(name)
+		name(name),
+		diffuse_color_(diffuse_color)
 	{}
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
@@ -78,9 +79,9 @@ public:
 			fctr = std::pow(fctr, specularity_coef_);
 
 
-			res.r(res.r() + (kd_ * fctr * 255) * light.intensity);
-			res.g(res.g() + (kd_ * fctr * 255) * light.intensity);
-			res.b(res.b() + (kd_ * fctr * 255) * light.intensity);
+			res.r(res.r() + fctr * (kd_ * diffuse_color_.r()) * light.intensity);
+			res.b(res.b() + fctr * (kd_ * diffuse_color_.b()) * light.intensity);
+			res.g(res.g() + fctr * (kd_ * diffuse_color_.g()) * light.intensity);
 		}
 
 		// Add ambient light
@@ -100,6 +101,8 @@ protected:
 	int specularity_coef_;
 	double kd_;
 	double ka_;
+	Color diffuse_color_;
+
 
 	// debugging purpose
 	std::string name;
@@ -111,8 +114,8 @@ static std::vector<std::unique_ptr<Object>> objs;
 class Plane : public Object {
 public:
 	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal, int spec,
-		float ka, float kd) :
-		Object(spec, ka, kd, "Plane"),
+		float ka, float kd, Color diffuse_color) :
+		Object(spec, ka, kd, diffuse_color, "Plane"),
 		origin_(origin),
 		normal_(normal)
 	{
@@ -151,8 +154,8 @@ private:
 class Sphere : public Object{
 public:
 	Sphere(gmtl::Vec3d center, float radius, int spec,
-		float ka, float kd) :
-		Object(spec, ka, kd, "Sphere"),
+		float ka, float kd, Color diffuse_color) :
+		Object(spec, ka, kd, diffuse_color, "Sphere"),
 		center_(center),
 		radius_(radius)
 	{}
@@ -195,6 +198,7 @@ private:
 
 	gmtl::Vec3d center_;
 	double radius_;
+
 
 };
 
@@ -248,31 +252,34 @@ void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
 	objs.push_back(std::make_unique<Plane>(
-		gmtl::Vec3d{ 0, -1, 13 }, gmtl::Vec3d{ 0, 1, 0 }, 1, .3f, 1.f
+		gmtl::Vec3d{ 0, -1, 0 }, gmtl::Vec3d{ 0, 1, 0 }, 1, .3f, 1.f, Color{255, 255, 255}));
+	objs.push_back(std::make_unique<Sphere>(
+		gmtl::Vec3d{ 0, 1, 10}, 1, 1, 0.3f, 1.f, Color{130, 80, 165}
 		));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 1, 13}, 1, 1, 0.3f, 1.f));
-	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 1, 2, 20 }, 1, 1, 0.3f, 1.f));
+		gmtl::Vec3d{ 4, 2, 15 }, 1, 1, 0.3f, 1.f, Color{ 230, 104, 76 }));
 	
 
 	std::vector<Light> lights;
 	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 18 },  .8f });
 	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 3 }, .6f });
 
-	for (auto&& obj : objs) {
-		for (auto y = 0; y < scr.Height(); ++y) {
-			for (auto x = 0; x < scr.Width(); ++x) {
-				Ray ray = vfr.GetRayByPixel(
+	for (auto y = 0; y < scr.Height(); ++y) {
+		for (auto x = 0; x < scr.Width(); ++x) {
+			for (auto&& obj : objs) {
+
+				Ray Illum_ray = vfr.GetRayByPixel(
 					x - (scr.Width()/2), 
-					y - (scr.Height()/2));
+					y - (scr.Height()/2)
+				);
+				
 				// Test for collision
-				if (auto ip = obj->TestCollision(ray)) {
+				if (auto ip = obj->TestCollision(Illum_ray)) {
 					// Collision detected
 					auto t = ip.value();
-					gmtl::Vec3d intersection_point = ray.origin + ray.dir * t;
+					gmtl::Vec3d intersection_point = Illum_ray.origin + Illum_ray.dir * t;
 
-					uint8_t z_val = 255 - (intersection_point[2] / 1000.0) * 255;
+					uint8_t z_val = std::clamp((1 - (intersection_point[2] / 1000.0)) * 255, 0.0, 255.0);
 					scr.StorePixel(x, y, z_val, obj->Shade(lights , intersection_point, objs));
 				}
 			}
