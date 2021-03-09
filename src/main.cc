@@ -26,34 +26,34 @@ void Tracer(Screen& scr) {
 		DiffuseMaterial{
 			Color{255, 255, 255},
 			Color{255, 255, 255},
-			1
+			0
 		},
 		Color{ 148, 195, 236 },
-		0.1f));
+		0.1f, 0));
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 0, 1, 10 }, 1,
 		DiffuseMaterial{
 			Color{130, 80, 165},
 			Color{255, 255, 255},
-			10
+			100
 		},
 		Color{ 148, 195, 236 },
-		0.1f));
+		0.1f, 0.5f));
 	
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 2, 15 }, 1,
 		DiffuseMaterial{
 			Color{230, 104, 76 },
 			Color{255, 255, 255},
-			10
+			100
 		},
 		Color{ 148, 195, 236 },
-		0.1f));
+		0.1f, 0.5f));
 	
 
 	std::vector<Light> lights;
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 18 },  .8f });
-	lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 3 }, .6f });
+	lights.push_back(Light{ gmtl::Vec3d{ 0, 4, 7 },  1.f });
+	//lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 3 }, .6f });
 
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {
