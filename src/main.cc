@@ -22,12 +22,33 @@ void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
 	objs.push_back(std::make_unique<Plane>(
-		gmtl::Vec3d{ 0, -1, 0 }, gmtl::Vec3d{ 0, 1, 0 }, 1, .3f, 1.f, Color{255, 255, 255}));
+		gmtl::Vec3d{ 0, -1, 0 }, gmtl::Vec3d{ 0, 1, 0 },
+		DiffuseMaterial{
+			Color{255, 255, 255},
+			Color{255, 255, 255},
+			1
+		},
+		Color{ 148, 195, 236 },
+		0.1f));
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 1, 10}, 1, 1, 0.3f, 1.f, Color{130, 80, 165}
-		));
+		gmtl::Vec3d{ 0, 1, 10 }, 1,
+		DiffuseMaterial{
+			Color{130, 80, 165},
+			Color{255, 255, 255},
+			10
+		},
+		Color{ 148, 195, 236 },
+		0.1f));
+	
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 4, 2, 15 }, 1, 1, 0.3f, 1.f, Color{ 230, 104, 76 }));
+		gmtl::Vec3d{ 4, 2, 15 }, 1,
+		DiffuseMaterial{
+			Color{230, 104, 76 },
+			Color{255, 255, 255},
+			10
+		},
+		Color{ 148, 195, 236 },
+		0.1f));
 	
 
 	std::vector<Light> lights;

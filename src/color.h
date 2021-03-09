@@ -23,4 +23,11 @@ private:
 	double g_;
 };
 
+
+struct DiffuseMaterial {
+	Color kd;
+	Color ks;
+	float specular_coef;
+};
+
 #endif /*COLOR_H*/

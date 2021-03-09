@@ -11,13 +11,12 @@
 
 class Object {
 public:
-	Object(int spec, float ka, float kd, Color diffuse_color, std::string name) :
-		specularity_coef_(spec),
+	Object(DiffuseMaterial material , Color ka, float ambient_intensity, std::string name) :
+		material_(material),
 		ka_(ka),
-		kd_(kd),
 		name(name),
-		diffuse_color_(diffuse_color)
-	{}
+		ambient_intensity_(ambient_intensity)
+		{}
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
 
@@ -32,7 +31,8 @@ public:
 			gmtl::Vec3d light_dir = light.pos - intersec_point;
 			gmtl::normalize(light_dir);
 
-			double fctr{ 0.0 };
+			double diff_fctr{ 0.0 };
+			double spec_fctr = 0.0;
 			bool occluded = false;
 
 			// dumb ineffecient way to implement hard shdows
@@ -49,21 +49,41 @@ public:
 				}
 			}
 			if (!occluded) {
-				fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
-			}
-			fctr = std::pow(fctr, specularity_coef_);
+				diff_fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
 
-			auto light_color_addition =
-				kd_ * fctr * diffuse_color_.r();
-				res.r(res.r() + fctr * (kd_ * diffuse_color_.r()) * light.intensity);
-			res.b(res.b() + fctr * (kd_ * diffuse_color_.b()) * light.intensity);
-			res.g(res.g() + fctr * (kd_ * diffuse_color_.g()) * light.intensity);
+				gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
+				gmtl::normalize(intersec_point);
+				spec_fctr = gmtl::dot(Rm, intersec_point);
+			}
+
+			// Phong reflection model
+			auto red =
+				// diffuse
+				(material_.kd.r() * diff_fctr * light.intensity)
+				// Specualr
+				 + (material_.ks.r() * std::pow(spec_fctr, material_.specular_coef) * light.intensity);
+
+			auto blue =
+				// diffuse
+				(material_.kd.b() * diff_fctr * light.intensity)
+				// Specualr
+				 + (material_.ks.b() * std::pow(spec_fctr, material_.specular_coef) * light.intensity);
+
+			auto green =
+				// diffuse
+				(material_.kd.g() * diff_fctr * light.intensity)
+				// Specualr
+				 + (material_.ks.g() * std::pow(spec_fctr, material_.specular_coef) * light.intensity);
+
+			res.r(res.r() + red);
+			res.b(res.b() + red);
+			res.g(res.g() + red);
 		}
 
 		// Add ambient light
-		res.r(148 * ka_ + res.r());
-		res.g(195 * ka_ + res.g());
-		res.b(236 * ka_ + res.b());
+		res.r(ka_.r() * ambient_intensity_ + res.r());
+		res.g(ka_.b() * ambient_intensity_ + res.g());
+		res.b(ka_.g() * ambient_intensity_ + res.b());
 
 		//return { 255, 255, 255 };
 		return res;
@@ -74,11 +94,9 @@ public:
 protected:
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) = 0;
 
-	int specularity_coef_;
-	double kd_;
-	double ka_;
-	Color diffuse_color_;
-
+	DiffuseMaterial material_;
+	Color ka_;
+	float ambient_intensity_;
 
 	// debugging purpose
 	std::string name;
@@ -87,9 +105,10 @@ protected:
 
 class Plane : public Object {
 public:
-	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal, int spec,
-		float ka, float kd, Color diffuse_color) :
-		Object(spec, ka, kd, diffuse_color, "Plane"),
+	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal,
+		DiffuseMaterial material, Color ka, float ambient_intensity
+		) :
+		Object(material, ka, ambient_intensity, "Plane"),
 		origin_(origin),
 		normal_(normal)
 	{
@@ -105,11 +124,6 @@ public:
 			double t = gmtl::dot(diff, normal_) / denom;
 			if (t > 0) {
 				return t;
-				/*return gmtl::Vec3d{
-					r.origin[0] + t * r.dir[0],
-					r.origin[1] + t * r.dir[1],
-					r.origin[2] + t * r.dir[2]
-				};*/
 			}
 		}
 		return std::nullopt;
@@ -127,28 +141,16 @@ private:
 // Basic starting object
 class Sphere : public Object {
 public:
-	Sphere(gmtl::Vec3d center, float radius, int spec,
-		float ka, float kd, Color diffuse_color) :
-		Object(spec, ka, kd, diffuse_color, "Sphere"),
+	Sphere(gmtl::Vec3d center, float radius,
+		DiffuseMaterial material, Color ka, float ambient_intensity
+	) :
+		Object(material, ka, ambient_intensity, "Sphere"),
 		center_(center),
 		radius_(radius)
 	{}
 
 
 	std::optional<double> TestCollision(const Ray& r) const override {
-
-		//gmtl::Vec3d L = center_ - r.origin;
-		//
-		//double a = gmtl::dot(r.dir, r.dir);
-		//double b = 2 * gmtl::dot(L, r.dir);
-		//double c = gmtl::dot(L, L) - std::pow(radius_, 2);
-
-		//auto discriminant = std::pow(b, 2) - 4 * a * c;
-		//if (discriminant < 0) {
-		//	return {};
-		//}
-
-		//auto t = (-b - sqrt((b * b) - 4 * a * c)) / (2 * a);
 		double radius2 = std::pow(radius_, 2);
 		gmtl::Vec3d L = center_ - r.origin;
 		double tca = gmtl::dot(L, r.dir);
@@ -158,11 +160,6 @@ public:
 		double thc = std::sqrt(radius2 - d2);
 		double t = tca - thc;
 		return t;
-		/*return gmtl::Vec3d{
-			(r.origin[0] + t * r.dir[0]),
-			(r.origin[1] + t * r.dir[1]),
-			(r.origin[2] + t * r.dir[2])
-		};*/
 	}
 
 private:
@@ -172,8 +169,6 @@ private:
 
 	gmtl::Vec3d center_;
 	double radius_;
-
-
 };
 
 
