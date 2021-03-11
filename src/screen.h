@@ -52,9 +52,9 @@ public:
 
 		if (depth_buffer_[y * width_ + x] < z) {
 			// We change the pixel value only if its closer to the viewer
-			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.b();
-			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.g();
-			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.r();
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.blue();
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.green();
+			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.red();
 			depth_buffer_[y * width_ + x] = z;
 			//DEBUG
 			//SetPixel(device, x, 512 - y, COLORREF(RGB(255, 255, 255)));

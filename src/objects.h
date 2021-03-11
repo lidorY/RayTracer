@@ -36,7 +36,7 @@ public:
 			double spec_fctr = 0.0;
 			bool occluded = false;
 
-			// dumb ineffecient way to implement hard shdows
+			 //dumb ineffecient way to implement hard shdows
 			for (auto&& o : colliders) {
 				if (o.get() == this) { continue; }
 				auto p = o->TestCollision({ intersec_point, light.pos });
@@ -54,7 +54,7 @@ public:
 
 				gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
 				gmtl::normalize(intersec_point);
-				spec_fctr = gmtl::dot(Rm, intersec_point);
+				spec_fctr = gmtl::dot(Rm, -intersec_point);
 			}
 
 			// Phong reflection model
@@ -83,8 +83,8 @@ public:
 
 		// Add ambient light
 		res.r(ka_.r() * ambient_intensity_ + res.r());
-		res.g(ka_.b() * ambient_intensity_ + res.g());
-		res.b(ka_.g() * ambient_intensity_ + res.b());
+		res.g(ka_.g() * ambient_intensity_ + res.g());
+		res.b(ka_.b() * ambient_intensity_ + res.b());
 
 		//return { 255, 255, 255 };
 		return res;
@@ -120,7 +120,7 @@ public:
 	virtual std::optional<double> TestCollision(const Ray& r) const {
 
 		double denom = gmtl::dot(r.dir, normal_);
-		if (std::abs(denom) > 0.08) {
+		if (std::abs(denom) > 0.01) {
 			// Avoid zero division
 			gmtl::Vec3d diff = origin_ - r.origin;
 			double t = gmtl::dot(diff, normal_) / denom;

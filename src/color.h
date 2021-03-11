@@ -4,23 +4,31 @@
 #include <algorithm>
 
 // RGB color definition
-// Values range from 0.0 - 255.0
 struct Color {
 public:
 	Color(double r, double g, double b) :
-		r_(std::clamp(r, 0.0, 255.0)),
-		g_(std::clamp(g, 0.0, 255.0)),
-		b_(std::clamp(b, 0.0, 255.0)) {}
-	void r(double v) { r_ = std::clamp(v, 0.0, 255.0); }
-	void g(double v) { g_ = std::clamp(v, 0.0, 255.0); }
-	void b(double v) { b_ = std::clamp(v, 0.0, 255.0); }
+		r_(r),
+		g_(g),
+		b_(b) {}
+
+	void r(double v) { r_ = max(v, 0.0); }
+	void g(double v) { g_ = max(v, 0.0); }
+	void b(double v) { b_ = max(v, 0.0); }
+
 	double r() const { return r_; }
 	double g() const { return g_; }
 	double b() const { return b_; }
+
+
+	uint8_t red()   const {return std::clamp(r_ * 255.0, 0.0, 255.0);}
+	uint8_t blue()  const {return std::clamp(b_ * 255.0, 0.0, 255.0);}
+	uint8_t green() const {return std::clamp(g_ * 255.0, 0.0, 255.0);}
+
 private:
 	double r_;
 	double b_;
 	double g_;
+
 };
 
 

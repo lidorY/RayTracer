@@ -21,34 +21,39 @@ static std::vector<std::unique_ptr<Object>> objs;
 void Tracer(Screen& scr) {
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
+	Color scene_ambient { 0.58, 0.76, 0.92 };
+
+
 	objs.push_back(std::make_unique<Plane>(
-		gmtl::Vec3d{ 0, -1, 0 }, gmtl::Vec3d{ 0, 1, 0 },
+		gmtl::Vec3d{ 0, -3, 0 }, gmtl::Vec3d{ 0, 1, 0 },
 		DiffuseMaterial{
-			Color{255, 255, 255},
-			Color{255, 255, 255},
+			Color{1.0, 1.0, 1.0},
+			Color{1.0, 1.0, 1.0},
 			0
 		},
-		Color{ 148, 195, 236 },
-		0.1f, 0));
+		scene_ambient,		
+		.3f, 0.f));
+
+
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 0, 1, 10 }, 1,
 		DiffuseMaterial{
-			Color{130, 80, 165},
-			Color{255, 255, 255},
+			Color{0.5, 0.313, 0.64},
+			Color{0.5, 0.313, 0.64},
 			100
 		},
-		Color{ 148, 195, 236 },
-		0.1f, 0.5f));
+		scene_ambient,
+		0.3f, 0.2f));
 	
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 2, 15 }, 1,
 		DiffuseMaterial{
-			Color{230, 104, 76 },
-			Color{255, 255, 255},
-			100
+			Color{0.9, 0.4, 0.298 },
+			Color{0.9, 0.4, 0.298 },
+			10
 		},
-		Color{ 148, 195, 236 },
-		0.1f, 0.5f));
+		scene_ambient,
+		0.3f, 0.5f));
 	
 
 	std::vector<Light> lights;
@@ -71,7 +76,7 @@ void Tracer(Screen& scr) {
 					gmtl::Vec3d intersection_point = Illum_ray.origin + Illum_ray.dir * t;
 
 					uint8_t z_val = std::clamp((1 - (intersection_point[2] / 1000.0)) * 255, 0.0, 255.0);
-					scr.StorePixel(x, y, z_val, obj->Shade(lights , intersection_point, objs));
+					scr.StorePixel(x, y, z_val, obj->Shade(lights, intersection_point, objs));
 				}
 			}
 		}
