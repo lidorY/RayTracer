@@ -24,6 +24,9 @@ public:
 	uint8_t blue()  const {return std::clamp(b_ * 255.0, 0.0, 255.0);}
 	uint8_t green() const {return std::clamp(g_ * 255.0, 0.0, 255.0);}
 
+	Color operator*(double rhs) {
+		return {r_ * rhs, g_ * rhs, b_ * rhs};
+	}
 private:
 	double r_;
 	double b_;
@@ -34,6 +37,7 @@ private:
 
 struct DiffuseMaterial {
 	Color kd;
+	Color ka;
 	Color ks;
 	float specular_coef;
 };

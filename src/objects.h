@@ -11,18 +11,17 @@
 
 class Object {
 public:
-	Object(DiffuseMaterial material , Color ka, float ambient_intensity, float spec_intensity, std::string name) :
+	Object(DiffuseMaterial material , Light ambient_light, float spec_intensity, std::string name) :
 		material_(material),
-		ka_(ka),
+		ambient_light_(ambient_light),
 		name(name),
-		ambient_intensity_(ambient_intensity),
 		spec_intensity_(spec_intensity)
 		{}
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
 
 
-	Color Shade(const std::vector<Light>& point_lights, gmtl::Vec3d intersec_point,
+	Color Shade(const std::vector<PointLight>& point_lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders) {
 		Color res{ 0, 0, 0 };
 		for (auto&& light : point_lights) {
@@ -81,10 +80,10 @@ public:
 			res.g(res.g() + green);
 		}
 
-		// Add ambient light
-		res.r(ka_.r() * ambient_intensity_ + res.r());
-		res.g(ka_.g() * ambient_intensity_ + res.g());
-		res.b(ka_.b() * ambient_intensity_ + res.b());
+		// Add global ambient light 
+		res.r(ambient_light_.light_color.r() * ambient_light_.intensity * material_.ka.r() + res.r());
+		res.g(ambient_light_.light_color.g() * ambient_light_.intensity * material_.ka.g() + res.g());
+		res.b(ambient_light_.light_color.b() * ambient_light_.intensity * material_.ka.b() + res.b());
 
 		//return { 255, 255, 255 };
 		return res;
@@ -96,8 +95,7 @@ protected:
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) = 0;
 
 	DiffuseMaterial material_;
-	Color ka_;
-	float ambient_intensity_;
+	Light ambient_light_;
 	float spec_intensity_;
 	// debugging purpose
 	std::string name;
@@ -107,10 +105,10 @@ protected:
 class Plane : public Object {
 public:
 	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal,
-		DiffuseMaterial material, Color ka, float ambient_intensity,
+		DiffuseMaterial material, Light ka,
 		float spec_intensity
 		) :
-		Object(material, ka, ambient_intensity, spec_intensity, "Plane"),
+		Object(material, ka, spec_intensity, "Plane"),
 		origin_(origin),
 		normal_(normal)
 	{
@@ -144,9 +142,9 @@ private:
 class Sphere : public Object {
 public:
 	Sphere(gmtl::Vec3d center, float radius,
-		DiffuseMaterial material, Color ka, float ambient_intensity, float spec_intensity
+		DiffuseMaterial material, Light ka,  float spec_intensity
 	) :
-		Object(material, ka, ambient_intensity, spec_intensity, "Sphere"),
+		Object(material, ka, spec_intensity, "Sphere"),
 		center_(center),
 		radius_(radius)
 	{}

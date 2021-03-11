@@ -3,6 +3,8 @@
 
 #include <gmtl/gmtl.h>
 
+#include "color.h"
+
 struct Ray {
 	Ray(gmtl::Vec3d p0, gmtl::Vec3d p1) :
 		origin(p0) {
@@ -18,11 +20,23 @@ struct Ray {
 };
 
 
+
+
 struct Light {
-	Light(gmtl::Vec3d pos, float intensity) :
-		pos(pos), intensity(intensity) {}
-	gmtl::Vec3d pos;
+	Light(Color c, float intensity) :
+		light_color(c), intensity(intensity) {}
+	Color light_color;
 	float intensity;
 };
+
+struct PointLight : public Light {
+	PointLight(Color c, float intensity, gmtl::Vec3d pos) :
+		Light(c, intensity),
+		pos(pos) {}
+
+	gmtl::Vec3d pos;
+};
+
+
 
 #endif /*COMMON_H*/
