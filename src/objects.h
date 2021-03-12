@@ -36,10 +36,10 @@ public:
 		}
 
 		gmtl::Vec3d normal = calcNormal(intersec_point);
-		gmtl::normalize(normal);
 
 		gmtl::Vec3d view_direction = intersec_point;
 		gmtl::normalize(view_direction);
+
 
 		// Send shadow feeler to light sources
 		auto base_light_color = Shade(point_lights, intersec_point, colliders, normal);
@@ -189,6 +189,8 @@ public:
 
 private:
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
+		// TODO: Add here a throwing test?
+		gmtl::normalize(normal_);
 		return normal_;
 	}
 
