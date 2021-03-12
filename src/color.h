@@ -27,6 +27,23 @@ public:
 	Color operator*(double rhs) {
 		return {r_ * rhs, g_ * rhs, b_ * rhs};
 	}
+
+	Color& operator+=(Color rhs) {
+		this->r_ += rhs.r_;
+		this->g_ += rhs.g_;
+		this->b_ += rhs.b_;
+
+		return *this;
+	}
+
+	Color operator+(Color& rhs){
+		return {
+			r_ + rhs.r_,
+			g_ + rhs.g_,
+			b_ + rhs.b_,
+		};
+	}
+
 private:
 	double r_;
 	double b_;
