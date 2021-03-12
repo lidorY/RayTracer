@@ -28,11 +28,12 @@ void Tracer(Screen& scr) {
 		DiffuseMaterial{
 			Color{1.0, 1.0, 1.0},
 			Color{1.0, 1.0, 1.0},
-			Color{1.0, 1.0, 1.0},
+			Color{0, 0, 0},
+			0,
 			0
 		},
-		scene_ambient_light,		
-		 0.f));
+		scene_ambient_light		
+		 ));
 
 
 	objs.push_back(std::make_unique<Sphere>(
@@ -41,10 +42,11 @@ void Tracer(Screen& scr) {
 			Color{0.5, 0.313, 0.64},
 			Color{0.5, 0.313, 0.64},
 			Color{0.5, 0.313, 0.64},
-			100
+			10,
+			0.6f
 		},
-		scene_ambient_light,
-		0.2f));
+		scene_ambient_light
+		));
 	
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 2, 15 }, 1,
@@ -52,15 +54,16 @@ void Tracer(Screen& scr) {
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
-			10
+			10,
+			0.5f
 		},
-		scene_ambient_light,
-		0.5f));
+		scene_ambient_light
+		));
 	
 
 	std::vector<PointLight> lights;
-	lights.push_back(PointLight{ Color{255, 255, 255}, 1.f, gmtl::Vec3d{ 0, 4, 7 }});
-	//lights.push_back(Light{ gmtl::Vec3d{ 0, 8, 3 }, .6f });
+	lights.push_back(PointLight{ Color{1, 1, 1}, .8f, gmtl::Vec3d{ 0, 4, 7 }});
+	lights.push_back(PointLight{ Color{1, 1, 1}, .6f, gmtl::Vec3d{ 10, 8, 3 }});
 
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {

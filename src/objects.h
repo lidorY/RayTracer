@@ -11,11 +11,10 @@
 
 class Object {
 public:
-	Object(DiffuseMaterial material , Light ambient_light, float spec_intensity, std::string name) :
+	Object(DiffuseMaterial material , Light ambient_light, std::string name) :
 		material_(material),
 		ambient_light_(ambient_light),
-		name(name),
-		spec_intensity_(spec_intensity)
+		name(name)
 		{}
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
@@ -25,11 +24,7 @@ public:
 		const std::vector<std::unique_ptr<Object>>& colliders) {
 		Color res{ 0, 0, 0 };
 		for (auto&& light : point_lights) {
-			gmtl::Vec3d normal = calcNormal(intersec_point);
-			gmtl::normalize(normal);
-
-			gmtl::Vec3d light_dir = light.pos - intersec_point;
-			gmtl::normalize(light_dir);
+			
 
 			double diff_fctr{ 0.0 };
 			double spec_fctr = 0.0;
@@ -49,31 +44,31 @@ public:
 				}
 			}
 			if (!occluded) {
-				diff_fctr = gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir));
+				gmtl::Vec3d normal = calcNormal(intersec_point);
+				gmtl::normalize(normal);
+
+				gmtl::Vec3d light_dir = light.pos - intersec_point;
+				gmtl::normalize(light_dir);
+				diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
 
 				gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
 				gmtl::normalize(intersec_point);
-				spec_fctr = gmtl::dot(Rm, -intersec_point);
+				spec_fctr = std::abs(gmtl::dot(Rm, -intersec_point));
 			}
 
 			// Phong reflection model
-			auto red =
-				// diffuse
-				(material_.kd.r() * diff_fctr * light.intensity)
-				// Specualr
-				 + (material_.ks.r() * std::pow(spec_fctr, material_.specular_coef) * light.intensity * spec_intensity_);
+			double  r_diff = (material_.kd.r() * (light.light_color.r() * light.intensity) * diff_fctr);
+			double  g_diff = (material_.kd.g() * (light.light_color.g() * light.intensity) * diff_fctr);
+			double  b_diff = (material_.kd.b() * (light.light_color.b() * light.intensity) * diff_fctr);
+			
+			double  r_spec = (material_.ks.r() * (light.light_color.r() * light.intensity) * std::pow(spec_fctr, material_.specular_coef)) * material_.spec_intensity;
+			double  g_spec = (material_.ks.g() * (light.light_color.g() * light.intensity) * std::pow(spec_fctr, material_.specular_coef)) * material_.spec_intensity;
+			double  b_spec = (material_.ks.b() * (light.light_color.b() * light.intensity) * std::pow(spec_fctr, material_.specular_coef)) * material_.spec_intensity;
+			
+			double  red = r_diff + r_spec;			
+			double  green = g_diff + g_spec;
+			double  blue = b_diff + b_spec;
 
-			auto blue =
-				// diffuse
-				(material_.kd.b() * diff_fctr * light.intensity)
-				// Specualr
-				 + (material_.ks.b() * std::pow(spec_fctr, material_.specular_coef) * light.intensity * spec_intensity_);
-
-			auto green =
-				// diffuse
-				(material_.kd.g() * diff_fctr * light.intensity)
-				// Specualr
-				+ (material_.ks.g() * std::pow(spec_fctr, material_.specular_coef) * light.intensity * spec_intensity_);
 
 			res.r(res.r() + red);
 			res.b(res.b() + blue);
@@ -96,7 +91,6 @@ protected:
 
 	DiffuseMaterial material_;
 	Light ambient_light_;
-	float spec_intensity_;
 	// debugging purpose
 	std::string name;
 };
@@ -105,10 +99,8 @@ protected:
 class Plane : public Object {
 public:
 	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal,
-		DiffuseMaterial material, Light ka,
-		float spec_intensity
-		) :
-		Object(material, ka, spec_intensity, "Plane"),
+		DiffuseMaterial material, Light ka) :
+		Object(material, ka, "Plane"),
 		origin_(origin),
 		normal_(normal)
 	{
@@ -142,9 +134,8 @@ private:
 class Sphere : public Object {
 public:
 	Sphere(gmtl::Vec3d center, float radius,
-		DiffuseMaterial material, Light ka,  float spec_intensity
-	) :
-		Object(material, ka, spec_intensity, "Sphere"),
+		DiffuseMaterial material, Light ka) :
+		Object(material, ka, "Sphere"),
 		center_(center),
 		radius_(radius)
 	{}

@@ -40,6 +40,7 @@ struct DiffuseMaterial {
 	Color ka;
 	Color ks;
 	float specular_coef;
+	float spec_intensity;
 };
 
 #endif /*COLOR_H*/

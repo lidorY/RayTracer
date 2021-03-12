@@ -51,6 +51,8 @@ public:
 		auto curr_buf = (screen_buffer_ + 1) % buffers_.size();
 
 		if (depth_buffer_[y * width_ + x] < z) {
+
+			auto blue = c.blue();
 			// We change the pixel value only if its closer to the viewer
 			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = c.blue();
 			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.green();
