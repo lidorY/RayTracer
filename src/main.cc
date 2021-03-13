@@ -17,6 +17,7 @@
 
 static std::vector<std::unique_ptr<Object>> objs;
 
+static const unsigned int MAX_DEPTH = 10;
 
 
 Color TraceRay(Ray ray, 
@@ -24,8 +25,14 @@ Color TraceRay(Ray ray,
 	const std::vector<std::unique_ptr<Object>>& colliders,
 	int depth = 0) {
 
+
 	// TODO: use a class to store this "static" variable
 	Color bgr = Color{ 0.58, 0.76, 0.92 };
+
+	if (depth > MAX_DEPTH) {
+		// Recursion stop condition
+		return bgr;
+	}
 
 	// 1. Find the closest intersected object
 	Object* current_obj = nullptr;
@@ -51,9 +58,42 @@ Color TraceRay(Ray ray,
 	Color surface_diffuse = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
 
 	// 3. Shoot reflection ray and trace further
+	gmtl::Vec3d view_direction = intersection_point - ray.origin;
+	gmtl::normalize(view_direction);
+
+	bool inside = false;
+	if (gmtl::dot(normal_at_intersec, view_direction) > 0) {
+		normal_at_intersec = -normal_at_intersec;
+		inside = true;
+	}
+
+	// Calc relection and refraction rays
+	float facing_ratio = -gmtl::dot(normal_at_intersec, view_direction);
+	float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
+	gmtl::Vec3d reflection_dir = view_direction - normal_at_intersec * (2 * gmtl::dot(view_direction, normal_at_intersec));
+	gmtl::normalize(reflection_dir);
+
+	double bias = 1e-4;
+	Ray reflection = { intersection_point + normal_at_intersec * bias, reflection_dir };
+	auto reflection_value = TraceRay(reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
+
 	// 4. Shoot refraction ray
-	
-	return surface_diffuse;
+	double ior = 1.1;
+	double eta = inside ? ior : 1 / ior;
+
+	double cosi = -gmtl::dot(normal_at_intersec, view_direction);
+	double k = 1 - std::pow(eta, 2) * (1 - std::pow(cosi, 2));
+
+	gmtl::Vec3d ref_dir = (view_direction * eta) + (normal_at_intersec * (eta * cosi - std::sqrt(k)));
+	gmtl::normalize(ref_dir);
+
+	Ray refraction = Ray{ intersection_point, ref_dir };
+	auto refraction_value = TraceRay(refraction, point_lights, colliders, depth + 1) * current_obj->material().transparency;
+
+
+	return (reflection_value * fresnel) +  surface_diffuse;
+	//return (reflection_value * fresnel + refraction_value * (1 - fresnel)) +  surface_diffuse;
+	//return surface_diffuse;
 }
 
 void Tracer(Screen& scr) {
@@ -72,7 +112,8 @@ void Tracer(Screen& scr) {
 			Color{1.0, 1.0, 1.0} * 0.5,
 			Color{0, 0, 0} * 0.5,
 			0,
-			0
+			0,
+			0.5f,0
 		},
 		scene_ambient_light		
 		 ));
@@ -86,21 +127,21 @@ void Tracer(Screen& scr) {
 			Color{0.5, 0.313, 0.64},
 			100,
 			0.0f,
-			.0f,
+			1.0f,
 			1.f
 		},
 		scene_ambient_light
 		));
 	
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 2.2, 1, 13 }, 1,
+		gmtl::Vec3d{ 4, 1, 13 }, 1,
 		DiffuseMaterial{
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
 			10,
 			0.0f,
-			.8f,
+			2.f,
 			0.f
 		},
 		scene_ambient_light
@@ -109,7 +150,7 @@ void Tracer(Screen& scr) {
 
 	std::vector<PointLight> lights;
 	lights.push_back(PointLight{ Color{1, 1, 1}, 1.f, gmtl::Vec3d{ 0, 4, 7 }});
-	lights.push_back(PointLight{ Color{1, 1, 1}, .6f, gmtl::Vec3d{ 10, 8, 3 }});
+	//lights.push_back(PointLight{ Color{1, 1, 1}, .3f, gmtl::Vec3d{ 10, 8, 3 }});
 
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {

@@ -175,6 +175,8 @@ public:
 
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) = 0;
 
+	DiffuseMaterial material() { return material_; }
+
 protected:
 
 	DiffuseMaterial material_;
@@ -240,6 +242,10 @@ public:
 		if (d2 > radius2) return std::nullopt;
 		double thc = std::sqrt(radius2 - d2);
 		double t = tca - thc;
+		if (t < 0) {
+			t = tca + thc;
+		}
+
 		return t;
 	}
 
