@@ -20,9 +20,12 @@ static std::vector<std::unique_ptr<Object>> objs;
 
 
 void Tracer(Screen& scr) {
+
+	Color bgr = Color{ 0.58, 0.76, 0.92 };
+
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
-	Light scene_ambient_light{ Color{ 0.58, 0.76, 0.92 }, 0.5f };
+	Light scene_ambient_light{ bgr, 0.5f };
 
 	objs.push_back(std::make_unique<Plane>(
 		gmtl::Vec3d{ 0, -3, 0 }, gmtl::Vec3d{ 0, 1, 0 },
@@ -85,6 +88,9 @@ void Tracer(Screen& scr) {
 					//scr.StorePixel(x, y, z_val, obj->Shade(lights, intersection_point, objs));
 					scr.StorePixel(x, y, z_val, obj->GetColorInIntersection(intersection_point, lights, objs));
 				}
+				else {
+					scr.StorePixel(x, y, 1, bgr);
+				}
 			}
 		}
 	}
@@ -97,8 +103,6 @@ int main() {
 	// Define on the free store in order to enable large data storage
 	std::unique_ptr screen = std::make_unique<Screen>(640, 640, consoleDC);
 	
-	Color clear_color = { 148, 195, 236 };
-    screen->ClearScreenColor(clear_color);
 	Tracer(*screen.get());
 	screen->DrawScreen();
 
