@@ -48,19 +48,23 @@ void Tracer(Screen& scr) {
 			Color{0.5, 0.313, 0.64},
 			Color{0.5, 0.313, 0.64},
 			100,
-			0.5f
+			0.5f,
+			.8f,
+			0
 		},
 		scene_ambient_light
 		));
 	
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 4, 1.5, 15 }, 1,
+		gmtl::Vec3d{ 2.2, 1, 13 }, 1,
 		DiffuseMaterial{
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
 			Color{0.9, 0.4, 0.298 },
 			10,
-			0.0f
+			0.0f,
+			.8f,
+			0.f
 		},
 		scene_ambient_light
 		));
@@ -68,7 +72,7 @@ void Tracer(Screen& scr) {
 
 	std::vector<PointLight> lights;
 	lights.push_back(PointLight{ Color{1, 1, 1}, 1.f, gmtl::Vec3d{ 0, 4, 7 }});
-	//lights.push_back(PointLight{ Color{1, 1, 1}, .6f, gmtl::Vec3d{ 10, 8, 3 }});
+	lights.push_back(PointLight{ Color{1, 1, 1}, .6f, gmtl::Vec3d{ 10, 8, 3 }});
 
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {

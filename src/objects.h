@@ -9,7 +9,7 @@
 #include "common.h"
 #include "color.h"
 
-static const unsigned int MAX_RAY_DEPTH = 2;
+static const unsigned int MAX_RAY_DEPTH = 20;
 
 class Object {
 public:
@@ -28,34 +28,36 @@ public:
 		const std::vector<std::unique_ptr<Object>>& colliders,
 		int ray_depth = 0) {
 		
-		float ref_val = .4f;
-
 		if (ray_depth > MAX_RAY_DEPTH) {
 			// Recursion stop condition
-			return Color{ 0,0,0 };
+			return ambient_light_.light_color * ambient_light_.intensity;
 		}
 
+
+
 		gmtl::Vec3d normal = calcNormal(intersec_point);
+
+		// Send shadow feeler to light sources
+		auto surface_light_color = Shade(point_lights, intersec_point, colliders, normal);
 
 		gmtl::Vec3d view_direction = intersec_point;
 		gmtl::normalize(view_direction);
 
-
-		// Send shadow feeler to light sources
-		auto base_light_color = Shade(point_lights, intersec_point, colliders, normal);
-
-		// Calc relection and refraction rays
-		gmtl::Vec3d reflection_dir = ((2 * gmtl::dot(view_direction, normal) * normal) - view_direction);
-		gmtl::normalize(reflection_dir);
-
-		double cos_view = gmtl::dot(view_direction, normal);
-		double cos_ref = gmtl::dot(reflection_dir, normal);
-		if (cos_view - cos_ref > 1e-3) {
-			throw std::exception("");
+		bool inside = false;
+		if (gmtl::dot(normal, view_direction) > 0) {
+			normal = -normal;
+			inside = true;
 		}
 
+		// Calc relection and refraction rays
+		float facing_ratio = -gmtl::dot(normal, view_direction);
+		float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
+		
+		gmtl::Vec3d reflection_dir = view_direction - normal * (2 * gmtl::dot(view_direction, normal));
+		gmtl::normalize(reflection_dir);
 
-		Ray reflection = { intersec_point, reflection_dir };
+		double bias = 1e-4;
+		Ray reflection = { intersec_point + normal * bias, reflection_dir };
 
 		//Ray refraction = Ray{ gmtl::Vec3d{0,0,0}, gmtl::Vec3d{0,0,0} };
 		
@@ -68,20 +70,23 @@ public:
 				// Collision detected
 				auto t = ip.value();
 				gmtl::Vec3d ref_intersection_point = reflection.origin + reflection.dir * t;
-				reflection_value = c->GetColorInIntersection(ref_intersection_point, point_lights, colliders, ray_depth+1) * ref_val;
+				reflection_value = c->GetColorInIntersection(ref_intersection_point, point_lights, colliders, ray_depth+1);
 				reflected = true;
 				//break;
 			}
 		}
 
 		if (!reflected) {
-			reflection_value = ambient_light_.light_color * ambient_light_.intensity;
+			// If we didn't hit any surface there's no reason to trace any further..
+			return ambient_light_.light_color * ambient_light_.intensity + surface_light_color;
 		}
 		
 
 
 		// Test refraction rays intersections with colliders:
 		//Color refraction_value = { 0,0,0 };
+		//float ior = 
+
 		//for (auto&& c : colliders) {
 		//	if (auto ip = c->TestCollision(reflection)) {
 		//		// Collision detected
@@ -91,11 +96,16 @@ public:
 		//	}
 		//}
 
-		return /*refraction_value +*/ (reflection_value) + base_light_color;
+
+
+		return (reflection_value * fresnel * material_.reflectivity) + surface_light_color;
 	}
 
 	Color Shade(const std::vector<PointLight>& point_lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders, gmtl::Vec3d normal) {
+
+		// Accumulate the light color from the lights in the scene
+
 		Color res{ 0, 0, 0 };
 		for (auto&& light : point_lights) {
 			double diff_fctr{ 0.0 };
@@ -142,10 +152,6 @@ public:
 			res.g(res.g() + green);
 		}
 
-		// Add global ambient light 
-		//res.r(ambient_light_.light_color.r() * ambient_light_.intensity * material_.ka.r() + res.r());
-		//res.g(ambient_light_.light_color.g() * ambient_light_.intensity * material_.ka.g() + res.g());
-		//res.b(ambient_light_.light_color.b() * ambient_light_.intensity * material_.ka.b() + res.b());
 
 		return res;
 	}
