@@ -42,15 +42,15 @@ void Tracer(Screen& scr) {
 
 
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 0, 1, 10 }, 1,
+		gmtl::Vec3d{ 1, 1, 10 }, 1,
 		DiffuseMaterial{
 			Color{0.5, 0.313, 0.64},
 			Color{0.5, 0.313, 0.64},
 			Color{0.5, 0.313, 0.64},
 			100,
-			0.5f,
-			.8f,
-			0
+			0.0f,
+			.0f,
+			1.f
 		},
 		scene_ambient_light
 		));

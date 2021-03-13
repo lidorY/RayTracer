@@ -9,7 +9,7 @@
 #include "common.h"
 #include "color.h"
 
-static const unsigned int MAX_RAY_DEPTH = 20;
+static const unsigned int MAX_RAY_DEPTH = 2;
 
 class Object {
 public:
@@ -84,21 +84,36 @@ public:
 
 
 		// Test refraction rays intersections with colliders:
-		//Color refraction_value = { 0,0,0 };
-		//float ior = 
+		Color refraction_value = { 0,0,0 };
+		double ior = 1.1;
+		double eta = inside ? ior : 1 / ior;
 
-		//for (auto&& c : colliders) {
-		//	if (auto ip = c->TestCollision(reflection)) {
-		//		// Collision detected
-		//		auto t = ip.value();
-		//		gmtl::Vec3d ract_intersection_point = reflection.origin + reflection.dir * t;
-		//		refraction_value += c->GetColorInIntersection(ract_intersection_point, point_lights, colliders, ray_depth + 1);
-		//	}
-		//}
+		double cosi = -gmtl::dot(normal, view_direction);
+		double k = 1 - std::pow(eta, 2) * (1 - std::pow(cosi, 2));
+
+		gmtl::Vec3d ref_dir = (view_direction * eta) + (normal * (eta * cosi - std::sqrt(k)));
+		gmtl::normalize(ref_dir);
+
+		Ray refraction = Ray{ intersec_point, ref_dir };
+		bool refracted = false;
+		for (auto&& c : colliders) {
+			if (c.get() == this) { continue; }
+			if (auto ip = c->TestCollision(refraction)) {
+				// Collision detected
+				auto t = ip.value();
+				gmtl::Vec3d ref_intersection_point = refraction.origin + refraction.dir * t;
+				refraction_value = c->GetColorInIntersection(ref_intersection_point, point_lights, colliders, ray_depth + 1);
+				refracted = true;
+				break;
+			}
+		}
+		if (!refracted) {
+			// If we didn't hit any surface there's no reason to trace any further..
+			return ambient_light_.light_color * ambient_light_.intensity + surface_light_color;
+		}
 
 
-
-		return (reflection_value * fresnel * material_.reflectivity) + surface_light_color;
+		return (reflection_value * fresnel  + refraction_value * (1 - fresnel) * material_.transparency) + surface_light_color;
 	}
 
 	Color Shade(const std::vector<PointLight>& point_lights, gmtl::Vec3d intersec_point,
