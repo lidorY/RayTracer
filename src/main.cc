@@ -88,9 +88,7 @@ void Tracer(Screen& scr) {
 					//scr.StorePixel(x, y, z_val, obj->Shade(lights, intersection_point, objs));
 					scr.StorePixel(x, y, z_val, obj->GetColorInIntersection(intersection_point, lights, objs));
 				}
-				else {
-					scr.StorePixel(x, y, 1, bgr);
-				}
+			
 			}
 		}
 	}
@@ -103,6 +101,8 @@ int main() {
 	// Define on the free store in order to enable large data storage
 	std::unique_ptr screen = std::make_unique<Screen>(640, 640, consoleDC);
 	
+	Color clear_color = { 148, 195, 236 };
+    screen->ClearScreenColor(clear_color);
 	Tracer(*screen.get());
 	screen->DrawScreen();
 
