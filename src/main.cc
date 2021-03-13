@@ -22,6 +22,7 @@ static std::vector<std::unique_ptr<Object>> objs;
 void Tracer(Screen& scr) {
 
 	Color bgr = Color{ 0.58, 0.76, 0.92 };
+	scr.ClearScreenColor(bgr);
 
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
 
@@ -101,8 +102,7 @@ int main() {
 	// Define on the free store in order to enable large data storage
 	std::unique_ptr screen = std::make_unique<Screen>(640, 640, consoleDC);
 	
-	Color clear_color = { 148, 195, 236 };
-    screen->ClearScreenColor(clear_color);
+
 	Tracer(*screen.get());
 	screen->DrawScreen();
 
