@@ -11,6 +11,12 @@ struct Ray {
 		dir = (p1 - p0);
 		gmtl::normalize(dir);
 	}
+
+	Ray(const Ray& rhs) {
+		origin = rhs.origin;
+		dir = rhs.dir;
+	}
+
 	Ray(Ray&& r) {
 		origin = r.origin;
 		dir = r.dir;

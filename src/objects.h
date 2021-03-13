@@ -173,8 +173,9 @@ public:
 
 	virtual ~Object() {}
 
-protected:
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) = 0;
+
+protected:
 
 	DiffuseMaterial material_;
 	Light ambient_light_;
@@ -208,12 +209,12 @@ public:
 		return std::nullopt;
 	}
 
-private:
 	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
 		// TODO: Add here a throwing test?
 		gmtl::normalize(normal_);
 		return normal_;
 	}
+private:
 
 	gmtl::Vec3d origin_;
 	gmtl::Vec3d normal_;
@@ -242,7 +243,6 @@ public:
 		return t;
 	}
 
-private:
 	gmtl::Vec3d calcNormal(gmtl::Vec3d point) override {
 		// TODO: not effecient, should be using a returning function 
 		// so it will opt to move semantics..
@@ -250,6 +250,7 @@ private:
 		gmtl::normalize(normal);
 		return normal;
 	}
+private:
 
 	gmtl::Vec3d center_;
 	double radius_;

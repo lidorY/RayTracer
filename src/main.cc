@@ -19,6 +19,43 @@ static std::vector<std::unique_ptr<Object>> objs;
 
 
 
+Color TraceRay(Ray ray, 
+	const std::vector<PointLight>& point_lights,
+	const std::vector<std::unique_ptr<Object>>& colliders,
+	int depth = 0) {
+
+	// TODO: use a class to store this "static" variable
+	Color bgr = Color{ 0.58, 0.76, 0.92 };
+
+	// 1. Find the closest intersected object
+	Object* current_obj = nullptr;
+	double nearest = INFINITY;
+	for (auto&& c : colliders) {
+		if (auto ip = c->TestCollision(ray)) {
+			auto t = ip.value();
+			if (t < nearest) {
+				nearest = t;
+				current_obj = c.get();
+			}
+		}
+	}
+
+	if (!current_obj) {
+		return bgr;
+	}
+
+	gmtl::Vec3d intersection_point = ray.origin + ray.dir * nearest;
+	auto normal_at_intersec = current_obj->calcNormal(intersection_point);
+
+	// 2. Shoot shadow feeler to decide diffuse color
+	Color surface_diffuse = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
+
+	// 3. Shoot reflection ray and trace further
+	// 4. Shoot refraction ray
+	
+	return surface_diffuse;
+}
+
 void Tracer(Screen& scr) {
 
 	Color bgr = Color{ 0.58, 0.76, 0.92 };
@@ -76,25 +113,11 @@ void Tracer(Screen& scr) {
 
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {
-			for (auto&& obj : objs) {
-
-				Ray Illum_ray = vfr.GetRayByPixel(
-					x - (scr.Width()/2), 
-					y - (scr.Height()/2)
-				);
-				
-				// Test for collision
-				if (auto ip = obj->TestCollision(Illum_ray)) {
-					// Collision detected
-					auto t = ip.value();
-					gmtl::Vec3d intersection_point = Illum_ray.origin + Illum_ray.dir * t;
-
-					uint8_t z_val = std::clamp((1 - (intersection_point[2] / 1000.0)) * 255, 0.0, 255.0);
-					//scr.StorePixel(x, y, z_val, obj->Shade(lights, intersection_point, objs));
-					scr.StorePixel(x, y, z_val, obj->GetColorInIntersection(intersection_point, lights, objs));
-				}
-			
-			}
+			scr.StorePixel(x, y, 1, 
+				TraceRay(vfr.GetRayByPixel(
+					x - (scr.Width() / 2),
+					y - (scr.Height() / 2)
+				), lights, objs));
 		}
 	}
 }
