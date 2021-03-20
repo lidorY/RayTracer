@@ -24,7 +24,7 @@ public:
 
 	Color GetColorInIntersection(
 		gmtl::Vec3d intersec_point,
-		const std::vector<PointLight>& point_lights,
+		const std::vector<std::unique_ptr<PointLight>>& point_lights,
 		const std::vector<std::unique_ptr<Object>>& colliders,
 		int ray_depth = 0) {
 		
@@ -116,13 +116,13 @@ public:
 		return (reflection_value * fresnel  + refraction_value * (1 - fresnel) * material_.transparency) + surface_light_color;
 	}
 
-	Color Shade(const std::vector<PointLight>& point_lights, gmtl::Vec3d intersec_point,
+	Color Shade(const std::vector<std::unique_ptr<PointLight>>& lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders, gmtl::Vec3d normal) {
 
 		// Accumulate the light color from the lights in the scene
 
 		Color res{ 0, 0, 0 };
-		for (auto&& light : point_lights) {
+		for (auto&& light : lights) {
 			double diff_fctr{ 0.0 };
 			double spec_fctr = 0.0;
 			bool occluded = false;
@@ -130,7 +130,7 @@ public:
 			 // Check for occlusions
 			for (auto&& o : colliders) {
 				if (o.get() == this) { continue; }
-				auto p = o->TestCollision({ intersec_point, light.pos });
+				auto p = o->TestCollision({ intersec_point, light->pos });
 				if (p.has_value()) {
 					occluded = true;
 					break;
@@ -139,7 +139,7 @@ public:
 			if (!occluded) {
 				
 
-				gmtl::Vec3d light_dir = light.pos - intersec_point;
+				gmtl::Vec3d light_dir = light->pos - intersec_point;
 				gmtl::normalize(light_dir);
 				diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
 
@@ -149,9 +149,9 @@ public:
 			}
 
 			// Phong reflection model
-			double  r_diff = (material_.kd.r() * (light.light_color.r() * light.intensity) * diff_fctr);
-			double  g_diff = (material_.kd.g() * (light.light_color.g() * light.intensity) * diff_fctr);
-			double  b_diff = (material_.kd.b() * (light.light_color.b() * light.intensity) * diff_fctr);
+			double  r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr);
+			double  g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr);
+			double  b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr);
 			
 			double  r_spec = 0;// (material_.ks.r() * (light.light_color.r() * light.intensity) * std::pow(spec_fctr, material_.specular_coef))* material_.spec_intensity;
 			double  g_spec = 0;// (material_.ks.g() * (light.light_color.g() * light.intensity) * std::pow(spec_fctr, material_.specular_coef))* material_.spec_intensity;

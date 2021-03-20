@@ -15,13 +15,13 @@
 
 
 
-static std::vector<std::unique_ptr<Object>> objs;
 
-static const unsigned int MAX_DEPTH = 10;
+
+static const unsigned int MAX_DEPTH = 0;
 
 
 Color TraceRay(Ray ray, 
-	const std::vector<PointLight>& point_lights,
+	const std::vector< std::unique_ptr<PointLight>>& point_lights,
 	const std::vector<std::unique_ptr<Object>>& colliders,
 	int depth = 0) {
 
@@ -96,27 +96,52 @@ Color TraceRay(Ray ray,
 	//return surface_diffuse;
 }
 
-void Tracer(Screen& scr) {
+void Tracer(
+	Screen& scr,
+	const std::vector<std::unique_ptr<Object>>& objs,
+	const std::vector<std::unique_ptr<PointLight>>& lights
+	) {
 
-	Color bgr = Color{ 0.58, 0.76, 0.92 };
-	scr.ClearScreenColor(bgr);
-
+	// Defin the view frustum
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
+
+	// Trace every relevnat pixel on the screen
+	// i.e. generate and send primary rays
+	for (auto y = 0; y < scr.Height(); ++y) {
+		for (auto x = 0; x < scr.Width(); ++x) {
+			scr.StorePixel(x, y, 1, 
+				TraceRay(vfr.GetRayByPixel(
+					x - (scr.Width() / 2),
+					y - (scr.Height() / 2)
+				), lights, objs));
+		}
+	}
+}
+
+
+void SetupScene(
+	std::vector<std::unique_ptr<Object>>& objs,
+	std::vector<std::unique_ptr<PointLight>>& lights,
+	Color& bgr
+) {
+	// Setting up the scene incudes:
+	//		- Define Ambient and point lights in the scene,
+	//		- Place Objects in the scene
 
 	Light scene_ambient_light{ bgr, 0.5f };
 
 	objs.push_back(std::make_unique<Plane>(
 		gmtl::Vec3d{ 0, -3, 0 }, gmtl::Vec3d{ 0, 1, 0 },
 		DiffuseMaterial{
-			Color{1.0, 1.0, 1.0} * 0.5,
-			Color{1.0, 1.0, 1.0} * 0.5,
-			Color{0, 0, 0} * 0.5,
+			Color{1.0, 1.0, 1.0} *0.5,
+			Color{1.0, 1.0, 1.0} *0.5,
+			Color{0, 0, 0} *0.5,
 			0,
 			0,
 			0.5f,0
 		},
-		scene_ambient_light		
-		 ));
+		scene_ambient_light
+		));
 
 
 	objs.push_back(std::make_unique<Sphere>(
@@ -132,7 +157,8 @@ void Tracer(Screen& scr) {
 		},
 		scene_ambient_light
 		));
-	
+
+
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 1, 13 }, 1,
 		DiffuseMaterial{
@@ -146,21 +172,14 @@ void Tracer(Screen& scr) {
 		},
 		scene_ambient_light
 		));
-	
 
-	std::vector<PointLight> lights;
-	lights.push_back(PointLight{ Color{1, 1, 1}, 1.f, gmtl::Vec3d{ 0, 4, 7 }});
+	lights.push_back(
+		std::make_unique<PointLight>(
+			Color{ 1, 1, 1 },
+			1.f,
+			gmtl::Vec3d{ 0, 4, 7 }
+	));
 	//lights.push_back(PointLight{ Color{1, 1, 1}, .3f, gmtl::Vec3d{ 10, 8, 3 }});
-
-	for (auto y = 0; y < scr.Height(); ++y) {
-		for (auto x = 0; x < scr.Width(); ++x) {
-			scr.StorePixel(x, y, 1, 
-				TraceRay(vfr.GetRayByPixel(
-					x - (scr.Width() / 2),
-					y - (scr.Height() / 2)
-				), lights, objs));
-		}
-	}
 }
 
 
@@ -170,12 +189,25 @@ int main() {
 	// Define on the free store in order to enable large data storage
 	std::unique_ptr screen = std::make_unique<Screen>(640, 640, consoleDC);
 	
+	// Set up scene	
+	std::vector<std::unique_ptr<Object>> objs;
+	std::vector<std::unique_ptr<PointLight>> lights;
 
-	Tracer(*screen.get());
+	Color bgr = Color{ 0.58, 0.76, 0.92 };
+	screen->ClearScreenColor(bgr);
+	SetupScene(objs, lights, bgr);
+
+	// Apply tracing algorithm
+	Tracer(
+		*screen.get(),
+		objs,
+		lights);
+
+
+	// Draw result
 	screen->DrawScreen();
 
 	auto t1 = std::chrono::high_resolution_clock::now();
-
+	// Calculate the simulation time
 	std::cout << "Time: " << std::chrono::duration<double, std::milli>(t1 - t0).count() / 1000.0 << "Seconds \n";
-
 }
