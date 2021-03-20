@@ -20,14 +20,16 @@
 static const unsigned int MAX_DEPTH = 0;
 
 
-Color TraceRay(Ray ray, 
+Color TraceRay(
+	const Color& bgr,
+	Ray ray, 
 	const std::vector< std::unique_ptr<PointLight>>& point_lights,
 	const std::vector<std::unique_ptr<Object>>& colliders,
 	int depth = 0) {
-
-
-	// TODO: use a class to store this "static" variable
-	Color bgr = Color{ 0.58, 0.76, 0.92 };
+	// This methos is responsible of Handling Illumination 
+	// Curretly using Phong Illumination model for pure diffuse objects
+	// With conjuction of the Whitted liiumination algorithm for 
+	// reflective and transparent objects
 
 	if (depth > MAX_DEPTH) {
 		// Recursion stop condition
@@ -75,7 +77,7 @@ Color TraceRay(Ray ray,
 
 	double bias = 1e-4;
 	Ray reflection = { intersection_point + normal_at_intersec * bias, reflection_dir };
-	auto reflection_value = TraceRay(reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
+	auto reflection_value = TraceRay(bgr, reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
 
 	// 4. Shoot refraction ray
 	double ior = 1.1;
@@ -88,7 +90,7 @@ Color TraceRay(Ray ray,
 	gmtl::normalize(ref_dir);
 
 	Ray refraction = Ray{ intersection_point, ref_dir };
-	auto refraction_value = TraceRay(refraction, point_lights, colliders, depth + 1) * current_obj->material().transparency;
+	auto refraction_value = TraceRay(bgr, refraction, point_lights, colliders, depth + 1) * current_obj->material().transparency;
 
 
 	return (reflection_value * fresnel) +  surface_diffuse;
@@ -97,10 +99,14 @@ Color TraceRay(Ray ray,
 }
 
 void Tracer(
+	const Color& bgr,
 	Screen& scr,
 	const std::vector<std::unique_ptr<Object>>& objs,
 	const std::vector<std::unique_ptr<PointLight>>& lights
 	) {
+	// Main ray tracing function
+	// responsible of shooting the basic primary rays into the scene
+	// for every relevant pixel as defined by the view frustum and the screen
 
 	// Defin the view frustum
 	ViewFrustum vfr{scr.Width(), scr.Height(), 60, 1000.0};
@@ -110,7 +116,9 @@ void Tracer(
 	for (auto y = 0; y < scr.Height(); ++y) {
 		for (auto x = 0; x < scr.Width(); ++x) {
 			scr.StorePixel(x, y, 1, 
-				TraceRay(vfr.GetRayByPixel(
+				TraceRay(
+					bgr,
+					vfr.GetRayByPixel(
 					x - (scr.Width() / 2),
 					y - (scr.Height() / 2)
 				), lights, objs));
@@ -199,6 +207,7 @@ int main() {
 
 	// Apply tracing algorithm
 	Tracer(
+		bgr,
 		*screen.get(),
 		objs,
 		lights);
