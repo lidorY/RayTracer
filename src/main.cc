@@ -13,11 +13,7 @@
 #include "view_frustum.h"
 
 
-
-
-
-
-static const unsigned int MAX_DEPTH = 0;
+static const unsigned int MAX_DEPTH = 1;
 
 
 Color TraceRay(
@@ -50,15 +46,22 @@ Color TraceRay(
 	}
 
 	if (!current_obj) {
+		// Failed intersecting with something
+		// Return ambient light
 		return bgr;
 	}
 
 	gmtl::Vec3d intersection_point = ray.origin + ray.dir * nearest;
 	auto normal_at_intersec = current_obj->calcNormal(intersection_point);
 
-	// 2. Shoot shadow feeler to decide diffuse color
-	Color surface_diffuse = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
 
+	Color surface_diffuse = Color{ 0,0,0 };//current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
+	if (current_obj->material().reflectivity == 0 && current_obj->material().transparency == 0) {
+		// Dealing with diffuse object
+		// 2. Shoot shadow feeler to decide diffuse color
+		return current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec) +
+			(bgr * current_obj->GetAmbient().intensity);
+	}
 	// 3. Shoot reflection ray and trace further
 	gmtl::Vec3d view_direction = intersection_point - ray.origin;
 	gmtl::normalize(view_direction);
@@ -80,7 +83,7 @@ Color TraceRay(
 	auto reflection_value = TraceRay(bgr, reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
 
 	// 4. Shoot refraction ray
-	double ior = 1.1;
+	double ior = 1.5;
 	double eta = inside ? ior : 1 / ior;
 
 	double cosi = -gmtl::dot(normal_at_intersec, view_direction);
@@ -90,11 +93,11 @@ Color TraceRay(
 	gmtl::normalize(ref_dir);
 
 	Ray refraction = Ray{ intersection_point, ref_dir };
-	auto refraction_value = TraceRay(bgr, refraction, point_lights, colliders, depth + 1) * current_obj->material().transparency;
+	auto refraction_value = TraceRay(bgr, refraction, point_lights, colliders, depth + 1);//* current_obj->material().transparency;
 
 
-	return (reflection_value * fresnel) +  surface_diffuse;
-	//return (reflection_value * fresnel + refraction_value * (1 - fresnel)) +  surface_diffuse;
+	//return (reflection_value * fresnel) +  surface_diffuse;
+	return (reflection_value * fresnel + refraction_value * (1 - fresnel)) +  surface_diffuse;
 	//return surface_diffuse;
 }
 
@@ -136,32 +139,33 @@ void SetupScene(
 	//		- Define Ambient and point lights in the scene,
 	//		- Place Objects in the scene
 
-	Light scene_ambient_light{ bgr, 0.5f };
+	Light scene_ambient_light{ bgr, 0.3f };
 
 	objs.push_back(std::make_unique<Plane>(
 		gmtl::Vec3d{ 0, -3, 0 }, gmtl::Vec3d{ 0, 1, 0 },
 		DiffuseMaterial{
-			Color{1.0, 1.0, 1.0} *0.5,
-			Color{1.0, 1.0, 1.0} *0.5,
-			Color{0, 0, 0} *0.5,
-			0,
-			0,
-			0.5f,0
+			Color{1.0, 1.0, 1.0} * 0.5, // Kd
+			Color{1.0, 1.0, 1.0} * 0.5, // Ka
+			Color{0, 0, 0} *0.5,        // Ks
+			0,                          // Specular coef
+			0,                          // Specular intensity 
+			0,                          // Reflection
+			0                           // Refraction
 		},
 		scene_ambient_light
 		));
 
 
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 1, 1, 10 }, 1,
+		gmtl::Vec3d{ 3, 0, 10 }, 1,
 		DiffuseMaterial{
-			Color{0.5, 0.313, 0.64},
-			Color{0.5, 0.313, 0.64},
-			Color{0.5, 0.313, 0.64},
-			100,
-			0.0f,
-			1.0f,
-			1.f
+			Color{0.5, 0.313, 0.64},  // Kd
+			Color{0.5, 0.313, 0.64},  // Ka
+			Color{0.5, 0.313, 0.64},  // Ks
+			1,					  // Specular coef
+			1.0f,					  // Specular intensity 
+			0.f,				  // Reflection
+			1.0f						  // Refraction
 		},
 		scene_ambient_light
 		));
@@ -170,13 +174,13 @@ void SetupScene(
 	objs.push_back(std::make_unique<Sphere>(
 		gmtl::Vec3d{ 4, 1, 13 }, 1,
 		DiffuseMaterial{
-			Color{0.9, 0.4, 0.298 },
-			Color{0.9, 0.4, 0.298 },
-			Color{0.9, 0.4, 0.298 },
-			10,
-			0.0f,
-			2.f,
-			0.f
+			Color{0.9, 0.4, 0.298 },  // Kd
+			Color{0.9, 0.4, 0.298 },  // Ka
+			Color{0.9, 0.4, 0.298 },  // Ks
+			10,						  // Specular coef
+			0.0f,					  // Specular intensity 
+			0,						  // Reflection
+			0.f						  // Refraction
 		},
 		scene_ambient_light
 		));

@@ -28,7 +28,7 @@ public:
 	uint8_t blue()  const {return std::clamp(b_, 0.0, 1.0) * 255;}
 	uint8_t green() const {return std::clamp(g_, 0.0, 1.0) * 255;}
 
-	Color operator*(double rhs) {
+	Color operator*(double rhs) const {
 		return {r_ * rhs, g_ * rhs, b_ * rhs};
 	}
 
