@@ -13,7 +13,32 @@
 #include "view_frustum.h"
 
 
-static const unsigned int MAX_DEPTH = 1;
+static const unsigned int MAX_DEPTH = 4;
+
+
+
+double fresnel(const gmtl::Vec3d& I, const gmtl::Vec3d& N, const float& ior)
+{
+	double kr = 0;
+	double cosi = std::clamp(gmtl::dot(I, N) , -1.0, 1.0);
+	double etai = 1, etat = ior;
+	if (cosi > 0) { std::swap(etai, etat); }
+	// Compute sini using Snell's law
+	double sint = etai / etat * std::sqrtf(max(0.0, 1 - cosi * cosi));
+	// Total internal reflection
+	if (sint >= 1) {
+		kr = 1;
+	}
+	else {
+		double cost = sqrtf(max(0.0, 1 - sint * sint));
+		cosi = fabsf(cosi);
+		double Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+		double Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+		kr = (Rs * Rs + Rp * Rp) / 2.0;
+	}
+
+	return kr;
+}
 
 
 Color TraceRay(
@@ -21,13 +46,13 @@ Color TraceRay(
 	Ray ray, 
 	const std::vector< std::unique_ptr<PointLight>>& point_lights,
 	const std::vector<std::unique_ptr<Object>>& colliders,
-	int depth = 0) {
+	int depth = 1) {
 	// This methos is responsible of Handling Illumination 
 	// Curretly using Phong Illumination model for pure diffuse objects
 	// With conjuction of the Whitted liiumination algorithm for 
 	// reflective and transparent objects
 
-	if (depth > MAX_DEPTH) {
+	if (depth >= MAX_DEPTH) {
 		// Recursion stop condition
 		return bgr;
 	}
@@ -53,8 +78,53 @@ Color TraceRay(
 
 	gmtl::Vec3d intersection_point = ray.origin + ray.dir * nearest;
 	auto normal_at_intersec = current_obj->calcNormal(intersection_point);
+	Color surface_color{ 0,0,0 };
+
+	double refraction_index = 1.055;
+	// Decide if we're inside the object during refraction
+	if (gmtl::dot(normal_at_intersec, ray.dir) > 0) {
+		normal_at_intersec = -normal_at_intersec;
+		refraction_index = 1.0 / refraction_index;
+	}
+
+	surface_color = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec)
+		+ (bgr * current_obj->GetAmbient().intensity);
+	
 
 
+	Color ref_value{ 0,0,0 };
+	gmtl::Vec3d v_tag = ray.dir / std::abs(gmtl::dot(ray.dir, normal_at_intersec));
+	{
+		// Get the reflectivity addition
+		gmtl::Vec3d ref_dir = v_tag + (2.0 * normal_at_intersec);
+		gmtl::normalize(ref_dir);
+		double bias = 1e-4;
+		gmtl::Vec3d moved_hit = intersection_point + normal_at_intersec * bias;
+		Ray reflection_ray{ moved_hit, ref_dir + moved_hit };
+		ref_value = TraceRay(bgr, reflection_ray, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
+	}
+
+	// Get Refraction value
+	Color t_value{ 0,0,0 };
+
+	gmtl::Vec3d a = v_tag + normal_at_intersec;
+	double k = (std::pow(refraction_index,2) * gmtl::lengthSquared(v_tag)) - gmtl::lengthSquared(a);
+	if (k > 0) {
+		gmtl::Vec3d t_dir = ((1.0 / std::sqrt(k)) * (normal_at_intersec + v_tag)) - normal_at_intersec;
+		gmtl::normalize(t_dir);
+		double bias = 1e-4;
+		gmtl::Vec3d moved_hit = intersection_point - normal_at_intersec * bias;
+
+		Ray t_ray = { moved_hit, t_dir + moved_hit };
+		t_value = TraceRay(bgr, t_ray, point_lights, colliders, depth + 1) * current_obj->material().transparency;
+	} // K less than zero means no refraction occured (total reflection)
+
+	float facing_ratio = -gmtl::dot(normal_at_intersec, ray.dir);
+	float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
+
+	return (((ref_value * (fresnel)) + (t_value * (1 - fresnel))) + (surface_color));
+
+	/*
 	Color surface_diffuse = Color{ 0,0,0 };//current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
 	if (current_obj->material().reflectivity == 0 && current_obj->material().transparency == 0) {
 		// Dealing with diffuse object
@@ -62,8 +132,10 @@ Color TraceRay(
 		return current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec) +
 			(bgr * current_obj->GetAmbient().intensity);
 	}
+
+
 	// 3. Shoot reflection ray and trace further
-	gmtl::Vec3d view_direction = intersection_point - ray.origin;
+	gmtl::Vec3d view_direction = intersection_point;// -ray.origin;// -ray.origin;//intersection_point - ray.origin;
 	gmtl::normalize(view_direction);
 
 	bool inside = false;
@@ -75,15 +147,16 @@ Color TraceRay(
 	// Calc relection and refraction rays
 	float facing_ratio = -gmtl::dot(normal_at_intersec, view_direction);
 	float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
-	gmtl::Vec3d reflection_dir = view_direction - normal_at_intersec * (2 * gmtl::dot(view_direction, normal_at_intersec));
-	gmtl::normalize(reflection_dir);
+	
+	//gmtl::Vec3d reflection_dir = view_direction - normal_at_intersec * (2 * gmtl::dot(view_direction, normal_at_intersec));
+	//gmtl::normalize(reflection_dir);
 
-	double bias = 1e-4;
-	Ray reflection = { intersection_point + normal_at_intersec * bias, reflection_dir };
-	auto reflection_value = TraceRay(bgr, reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
+	//double bias = 1e-4;
+	//Ray reflection = { intersection_point + normal_at_intersec * bias, reflection_dir };
+	//auto reflection_value = TraceRay(bgr, reflection, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
 
 	// 4. Shoot refraction ray
-	double ior = 1.5;
+	double ior = 1.1;
 	double eta = inside ? ior : 1 / ior;
 
 	double cosi = -gmtl::dot(normal_at_intersec, view_direction);
@@ -92,13 +165,14 @@ Color TraceRay(
 	gmtl::Vec3d ref_dir = (view_direction * eta) + (normal_at_intersec * (eta * cosi - std::sqrt(k)));
 	gmtl::normalize(ref_dir);
 
-	Ray refraction = Ray{ intersection_point, ref_dir };
+	Ray refraction = Ray{ intersection_point, ref_dir + intersection_point };
 	auto refraction_value = TraceRay(bgr, refraction, point_lights, colliders, depth + 1);//* current_obj->material().transparency;
 
 
 	//return (reflection_value * fresnel) +  surface_diffuse;
-	return (reflection_value * fresnel + refraction_value * (1 - fresnel)) +  surface_diffuse;
-	//return surface_diffuse;
+	return (refraction_value * (1 - fresnel)) +  surface_diffuse;
+	//return (reflection_value * fresnel +  refraction_value * (1 - fresnel)) +  surface_diffuse;
+	//return surface_diffuse;*/
 }
 
 void Tracer(
@@ -157,15 +231,15 @@ void SetupScene(
 
 
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 3, 0, 10 }, 1,
+		gmtl::Vec3d{ 2, 1, 10 }, 1,
 		DiffuseMaterial{
-			Color{0.5, 0.313, 0.64},  // Kd
-			Color{0.5, 0.313, 0.64},  // Ka
-			Color{0.5, 0.313, 0.64},  // Ks
+			Color{0.5, 0.313, 0.64} * 0,  // Kd
+			Color{0.5, 0.313, 0.64} * 0,  // Ka
+			Color{0.5, 0.313, 0.64} * 0,  // Ks
 			1,					  // Specular coef
 			1.0f,					  // Specular intensity 
-			0.f,				  // Reflection
-			1.0f						  // Refraction
+			.0,				  // Reflection
+			.9f				   // Refraction
 		},
 		scene_ambient_light
 		));
@@ -179,7 +253,7 @@ void SetupScene(
 			Color{0.9, 0.4, 0.298 },  // Ks
 			10,						  // Specular coef
 			0.0f,					  // Specular intensity 
-			0,						  // Reflection
+			0.f,						  // Reflection
 			0.f						  // Refraction
 		},
 		scene_ambient_light
@@ -191,6 +265,13 @@ void SetupScene(
 			1.f,
 			gmtl::Vec3d{ 0, 4, 7 }
 	));
+
+	/*lights.push_back(
+		std::make_unique<PointLight>(
+			Color{ 1, 1, 1 },
+			.3f,
+			gmtl::Vec3d{ 10, 8, 3 }
+	));*/
 	//lights.push_back(PointLight{ Color{1, 1, 1}, .3f, gmtl::Vec3d{ 10, 8, 3 }});
 }
 

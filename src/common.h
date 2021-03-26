@@ -12,6 +12,12 @@ struct Ray {
 		gmtl::normalize(dir);
 	}
 
+	Ray& Construct(const gmtl::Vec3d& orig, const gmtl::Vec3d& dir) {
+		this->origin = orig;
+		this->dir = dir;
+		return *this;
+	}
+
 	Ray(const Ray& rhs) {
 		origin = rhs.origin;
 		dir = rhs.dir;

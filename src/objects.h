@@ -153,12 +153,12 @@ public:
 			double  g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr);
 			double  b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr);
 			
-			double  r_spec = 
-				(material_.ks.r() * (light->light_color.r() * light->intensity) * std::pow(spec_fctr, material_.specular_coef))* material_.spec_intensity;
-			double  g_spec = 
-				(material_.ks.g() * (light->light_color.g() * light->intensity) * std::pow(spec_fctr, material_.specular_coef))* material_.spec_intensity;
-			double  b_spec = 
-				(material_.ks.b() * (light->light_color.b() * light->intensity) * std::pow(spec_fctr, material_.specular_coef))* material_.spec_intensity;
+			double  r_spec = 0;
+				
+			double  g_spec = 0;
+				
+			double  b_spec = 0;
+
 			
 			double  red = r_diff + r_spec;			
 			double  green = g_diff + g_spec;
