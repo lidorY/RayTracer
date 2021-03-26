@@ -1,4 +1,4 @@
 # RayTracer
 Simple ray-tracing study project.
 
-![](https://user-images.githubusercontent.com/15870496/112643333-4ff8c580-8e55-11eb-9429-e813d095ea5a.png)
+<img width="317" alt="result" src="https://user-images.githubusercontent.com/15870496/112654121-21341c80-8e60-11eb-8157-272d5f823cfe.png">
