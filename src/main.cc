@@ -13,7 +13,7 @@
 #include "view_frustum.h"
 
 
-static const unsigned int MAX_DEPTH = 14;
+static const unsigned int MAX_DEPTH = 4;
 
 
 

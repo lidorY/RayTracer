@@ -127,47 +127,42 @@ public:
 			double spec_fctr = 0.0;
 			bool occluded = false;
 
+
+			double occlusion_factor = 1.0;
 			 // Check for occlusions
 			for (auto&& o : colliders) {
 				if (o.get() == this) { continue; }
-				auto p = o->TestCollision({ intersec_point, light->pos });
+
+				Ray feeler{ intersec_point, light->pos };
+				auto p = o->TestCollision(feeler);
 				if (p.has_value()) {
-					occluded = true;
+					auto normal_at_intersec = o->calcNormal(feeler.origin + p.value() * feeler.dir);
+					float facing_ratio = -gmtl::dot(normal_at_intersec, feeler .dir);
+					float fresnel = mix(std::pow(1 - facing_ratio, 1), 0, .1f);
+
+					//occlusion_factor = 0.0;
+					occlusion_factor = (1 - fresnel) * o->material().transparency;
 					break;
 				}
 			}
-			if (!occluded) {
-				
 
-				gmtl::Vec3d light_dir = light->pos - intersec_point;
-				gmtl::normalize(light_dir);
-				diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
+			gmtl::Vec3d light_dir = light->pos - intersec_point;
+			gmtl::normalize(light_dir);
+			diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
 
-				gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
-				gmtl::normalize(intersec_point);
-				spec_fctr = std::abs(gmtl::dot(Rm, -intersec_point));
-			}
+			//gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
+			//gmtl::normalize(intersec_point);
+			//spec_fctr = std::abs(gmtl::dot(Rm, -intersec_point));
+			
 
 			// Phong reflection model
-			double  r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr);
-			double  g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr);
-			double  b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr);
-			
-			double  r_spec = 0;
-				
-			double  g_spec = 0;
-				
-			double  b_spec = 0;
+			double  r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr) * occlusion_factor;
+			double  g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr) * occlusion_factor;
+			double  b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr) * occlusion_factor;
 
-			
-			double  red = r_diff + r_spec;			
-			double  green = g_diff + g_spec;
-			double  blue = b_diff + b_spec;
-
-
-			res.r(res.r() + red);
-			res.b(res.b() + blue);
-			res.g(res.g() + green);
+			res.r(res.r() + r_diff);
+			res.b(res.b() + b_diff);
+			res.g(res.g() + g_diff);
 		}
 
 
