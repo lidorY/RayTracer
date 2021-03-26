@@ -5,17 +5,21 @@
 
 #include "color.h"
 
+
+
 struct Ray {
-	Ray(gmtl::Vec3d p0, gmtl::Vec3d p1) :
+	typedef gmtl::Vec3d direction;
+	typedef gmtl::Vec3d position;
+
+	//Ray(position p0, direction dir) :
+	//origin(p0),
+	//dir(dir)
+	//{}
+
+	Ray(position p0, position p1) :
 		origin(p0) {
 		dir = (p1 - p0);
 		gmtl::normalize(dir);
-	}
-
-	Ray& Construct(const gmtl::Vec3d& orig, const gmtl::Vec3d& dir) {
-		this->origin = orig;
-		this->dir = dir;
-		return *this;
 	}
 
 	Ray(const Ray& rhs) {
@@ -27,8 +31,8 @@ struct Ray {
 		origin = r.origin;
 		dir = r.dir;
 	}
-	gmtl::Vec3d origin;
-	gmtl::Vec3d dir;
+	position origin;
+	direction dir;
 };
 
 

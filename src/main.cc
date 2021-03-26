@@ -13,7 +13,7 @@
 #include "view_frustum.h"
 
 
-static const unsigned int MAX_DEPTH = 4;
+static const unsigned int MAX_DEPTH = 14;
 
 
 
@@ -57,7 +57,7 @@ Color TraceRay(
 		return bgr;
 	}
 
-	// 1. Find the closest intersected object
+	// Find the closest intersected object
 	Object* current_obj = nullptr;
 	double nearest = INFINITY;
 	for (auto&& c : colliders) {
@@ -79,50 +79,59 @@ Color TraceRay(
 	gmtl::Vec3d intersection_point = ray.origin + ray.dir * nearest;
 	auto normal_at_intersec = current_obj->calcNormal(intersection_point);
 	Color surface_color{ 0,0,0 };
+	double refraction_index = 1.1;
 
-	double refraction_index = 1.055;
-	// Decide if we're inside the object during refraction
+	// The calculation assumes dot product less than 0, 
+	// Fix directions and ceof in case its larger (meaning we are inside the object)
 	if (gmtl::dot(normal_at_intersec, ray.dir) > 0) {
 		normal_at_intersec = -normal_at_intersec;
 		refraction_index = 1.0 / refraction_index;
 	}
 
-	surface_color = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec)
-		+ (bgr * current_obj->GetAmbient().intensity);
+
+	// Calculate diffuse color
+	surface_color = current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
 	
 
 
 	Color ref_value{ 0,0,0 };
 	gmtl::Vec3d v_tag = ray.dir / std::abs(gmtl::dot(ray.dir, normal_at_intersec));
+
+	// Get the reflectivity addition
 	{
-		// Get the reflectivity addition
 		gmtl::Vec3d ref_dir = v_tag + (2.0 * normal_at_intersec);
 		gmtl::normalize(ref_dir);
 		double bias = 1e-4;
 		gmtl::Vec3d moved_hit = intersection_point + normal_at_intersec * bias;
 		Ray reflection_ray{ moved_hit, ref_dir + moved_hit };
-		ref_value = TraceRay(bgr, reflection_ray, point_lights, colliders, depth + 1) * current_obj->material().reflectivity;
+		ref_value = TraceRay(bgr, reflection_ray, point_lights, colliders, depth + 1);
 	}
 
 	// Get Refraction value
 	Color t_value{ 0,0,0 };
+	{
+		double k = (std::pow(refraction_index, 2) * gmtl::lengthSquared(v_tag)) - gmtl::lengthSquared(gmtl::Vec3d(v_tag + normal_at_intersec));
+		if (k > 0) {
+			gmtl::Vec3d t_dir = ((1.0 / std::sqrt(k)) * (normal_at_intersec + v_tag)) - normal_at_intersec;
+			gmtl::normalize(t_dir);
+			double bias = 1e-4;
+			gmtl::Vec3d moved_hit = intersection_point - normal_at_intersec * bias;
 
-	gmtl::Vec3d a = v_tag + normal_at_intersec;
-	double k = (std::pow(refraction_index,2) * gmtl::lengthSquared(v_tag)) - gmtl::lengthSquared(a);
-	if (k > 0) {
-		gmtl::Vec3d t_dir = ((1.0 / std::sqrt(k)) * (normal_at_intersec + v_tag)) - normal_at_intersec;
-		gmtl::normalize(t_dir);
-		double bias = 1e-4;
-		gmtl::Vec3d moved_hit = intersection_point - normal_at_intersec * bias;
+			Ray t_ray = { moved_hit, t_dir + moved_hit };
+			t_value = TraceRay(bgr, t_ray, point_lights, colliders, depth + 1);
+		} 
+		// K less than/equal zero means no refraction occured (total reflection)
+	}
 
-		Ray t_ray = { moved_hit, t_dir + moved_hit };
-		t_value = TraceRay(bgr, t_ray, point_lights, colliders, depth + 1) * current_obj->material().transparency;
-	} // K less than zero means no refraction occured (total reflection)
-
+	// Calculate the ratio between reflection and refraction
 	float facing_ratio = -gmtl::dot(normal_at_intersec, ray.dir);
 	float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
 
-	return (((ref_value * (fresnel)) + (t_value * (1 - fresnel))) + (surface_color));
+	auto kt = (1 - fresnel) * (current_obj->material().transparency);
+	auto kr = (1 - kt) * current_obj->material().reflectivity;
+	auto kd = 1 - current_obj->material().transparency;
+
+	return (((ref_value * kr) + (t_value * kt)) + (surface_color * kd)) + ((bgr * current_obj->GetAmbient().intensity) * kd) * (1.0 / depth);
 
 	/*
 	Color surface_diffuse = Color{ 0,0,0 };//current_obj->Shade(point_lights, intersection_point, colliders, normal_at_intersec);
@@ -231,14 +240,14 @@ void SetupScene(
 
 
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 2, 1, 10 }, 1,
+		gmtl::Vec3d{ 2, 0.5, 10 }, 1,
 		DiffuseMaterial{
-			Color{0.5, 0.313, 0.64} * 0,  // Kd
-			Color{0.5, 0.313, 0.64} * 0,  // Ka
-			Color{0.5, 0.313, 0.64} * 0,  // Ks
+			Color{0.5, 0.313, 0.64},  // Kd
+			Color{0.5, 0.313, 0.64},  // Ka
+			Color{0.5, 0.313, 0.64},  // Ks
 			1,					  // Specular coef
 			1.0f,					  // Specular intensity 
-			.0,				  // Reflection
+			.7,				  // Reflection
 			.9f				   // Refraction
 		},
 		scene_ambient_light
@@ -246,14 +255,14 @@ void SetupScene(
 
 
 	objs.push_back(std::make_unique<Sphere>(
-		gmtl::Vec3d{ 4, 1, 13 }, 1,
+		gmtl::Vec3d{ 1.5, 0, 13 }, 1,
 		DiffuseMaterial{
 			Color{0.9, 0.4, 0.298 },  // Kd
 			Color{0.9, 0.4, 0.298 },  // Ka
 			Color{0.9, 0.4, 0.298 },  // Ks
 			10,						  // Specular coef
 			0.0f,					  // Specular intensity 
-			0.f,						  // Reflection
+			0.2f,						  // Reflection
 			0.f						  // Refraction
 		},
 		scene_ambient_light
@@ -266,13 +275,12 @@ void SetupScene(
 			gmtl::Vec3d{ 0, 4, 7 }
 	));
 
-	/*lights.push_back(
+	lights.push_back(
 		std::make_unique<PointLight>(
 			Color{ 1, 1, 1 },
 			.3f,
 			gmtl::Vec3d{ 10, 8, 3 }
-	));*/
-	//lights.push_back(PointLight{ Color{1, 1, 1}, .3f, gmtl::Vec3d{ 10, 8, 3 }});
+	));
 }
 
 
