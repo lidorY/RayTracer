@@ -32,12 +32,12 @@ public:
 	Ray&& GetRayByPixel(int x, int y) {
 		// Zero terminated indexing.(staring from x/y=0)
 		return {
-			gmtl::Vec3d{0, 0, 0},
-			gmtl::Vec3d{
+			position{gmtl::Vec3d{0, 0, 0}},
+			position{gmtl::Vec3d{
 				(x + 0.5) * pixel_width_,
 				(y + 0.5) * pixel_height_,
 				1
-			}
+			}}
 		};
 	}
 

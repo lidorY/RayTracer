@@ -5,20 +5,25 @@
 
 #include "color.h"
 
+struct position {
+	gmtl::Vec3d value;
+};
 
+struct direction {
+	gmtl::Vec3d value;
+};
 
 struct Ray {
-	typedef gmtl::Vec3d direction;
-	typedef gmtl::Vec3d position;
 
-	//Ray(position p0, direction dir) :
-	//origin(p0),
-	//dir(dir)
-	//{}
+	Ray(const position& p0, const direction& dir) :
+		origin(p0.value) {
+		this->dir = (dir.value);
+		gmtl::normalize(this->dir);
+	}
 
-	Ray(position p0, position p1) :
-		origin(p0) {
-		dir = (p1 - p0);
+	Ray(const position& p0, const position& p1) :
+		origin(p0.value) {
+		dir = (p1.value - p0.value);
 		gmtl::normalize(dir);
 	}
 
@@ -27,15 +32,13 @@ struct Ray {
 		dir = rhs.dir;
 	}
 
-	Ray(Ray&& r) {
+	Ray(Ray&& r) noexcept {
 		origin = r.origin;
 		dir = r.dir;
 	}
-	position origin;
-	direction dir;
+	gmtl::Vec3d origin;
+	gmtl::Vec3d dir;
 };
-
-
 
 
 struct Light {
@@ -44,6 +47,7 @@ struct Light {
 	Color light_color;
 	float intensity;
 };
+
 
 struct PointLight : public Light {
 	PointLight(Color c, float intensity, gmtl::Vec3d pos) :

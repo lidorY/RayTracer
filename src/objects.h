@@ -13,108 +13,13 @@ static const unsigned int MAX_RAY_DEPTH = 2;
 
 class Object {
 public:
-	Object(DiffuseMaterial material , Light ambient_light, std::string name) :
+	Object(DiffuseMaterial material , Light ambient_light) :
 		material_(material),
-		ambient_light_(ambient_light),
-		name(name)
+		ambient_light_(ambient_light)
 		{}
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
 
-
-	Color GetColorInIntersection(
-		gmtl::Vec3d intersec_point,
-		const std::vector<std::unique_ptr<PointLight>>& point_lights,
-		const std::vector<std::unique_ptr<Object>>& colliders,
-		int ray_depth = 0) {
-		
-		if (ray_depth > MAX_RAY_DEPTH) {
-			// Recursion stop condition
-			return ambient_light_.light_color * ambient_light_.intensity;
-		}
-
-
-
-		gmtl::Vec3d normal = calcNormal(intersec_point);
-
-		// Send shadow feeler to light sources
-		auto surface_light_color = Shade(point_lights, intersec_point, colliders, normal);
-
-		gmtl::Vec3d view_direction = intersec_point;
-		gmtl::normalize(view_direction);
-
-		bool inside = false;
-		if (gmtl::dot(normal, view_direction) > 0) {
-			normal = -normal;
-			inside = true;
-		}
-
-		// Calc relection and refraction rays
-		float facing_ratio = -gmtl::dot(normal, view_direction);
-		float fresnel = mix(std::pow(1 - facing_ratio, 3), 1, 0.1f);
-		
-		gmtl::Vec3d reflection_dir = view_direction - normal * (2 * gmtl::dot(view_direction, normal));
-		gmtl::normalize(reflection_dir);
-
-		double bias = 1e-4;
-		Ray reflection = { intersec_point + normal * bias, reflection_dir };
-
-		//Ray refraction = Ray{ gmtl::Vec3d{0,0,0}, gmtl::Vec3d{0,0,0} };
-		
-		// Test reflection rays intersections with colliders:
-		Color reflection_value = {0,0,0}; 
-		bool reflected = false;
-		for (auto&& c : colliders) {
-			if (c.get() == this) { continue; }
-			if (auto ip = c->TestCollision(reflection)) {
-				// Collision detected
-				auto t = ip.value();
-				gmtl::Vec3d ref_intersection_point = reflection.origin + reflection.dir * t;
-				reflection_value = c->GetColorInIntersection(ref_intersection_point, point_lights, colliders, ray_depth+1);
-				reflected = true;
-				//break;
-			}
-		}
-
-		if (!reflected) {
-			// If we didn't hit any surface there's no reason to trace any further..
-			return ambient_light_.light_color * ambient_light_.intensity + surface_light_color;
-		}
-		
-
-
-		// Test refraction rays intersections with colliders:
-		Color refraction_value = { 0,0,0 };
-		double ior = 1.1;
-		double eta = inside ? ior : 1 / ior;
-
-		double cosi = -gmtl::dot(normal, view_direction);
-		double k = 1 - std::pow(eta, 2) * (1 - std::pow(cosi, 2));
-
-		gmtl::Vec3d ref_dir = (view_direction * eta) + (normal * (eta * cosi - std::sqrt(k)));
-		gmtl::normalize(ref_dir);
-
-		Ray refraction = Ray{ intersec_point, ref_dir };
-		bool refracted = false;
-		for (auto&& c : colliders) {
-			if (c.get() == this) { continue; }
-			if (auto ip = c->TestCollision(refraction)) {
-				// Collision detected
-				auto t = ip.value();
-				gmtl::Vec3d ref_intersection_point = refraction.origin + refraction.dir * t;
-				refraction_value = c->GetColorInIntersection(ref_intersection_point, point_lights, colliders, ray_depth + 1);
-				refracted = true;
-				break;
-			}
-		}
-		if (!refracted) {
-			// If we didn't hit any surface there's no reason to trace any further..
-			return ambient_light_.light_color * ambient_light_.intensity + surface_light_color;
-		}
-
-
-		return (reflection_value * fresnel  + refraction_value * (1 - fresnel) * material_.transparency) + surface_light_color;
-	}
 
 	Color Shade(const std::vector<std::unique_ptr<PointLight>>& lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders, gmtl::Vec3d normal) {
@@ -133,14 +38,12 @@ public:
 			for (auto&& o : colliders) {
 				if (o.get() == this) { continue; }
 
-				Ray feeler{ intersec_point, light->pos };
+				Ray feeler{ position{intersec_point}, position{light->pos} };
 				auto p = o->TestCollision(feeler);
 				if (p.has_value()) {
 					auto normal_at_intersec = o->calcNormal(feeler.origin + p.value() * feeler.dir);
 					float facing_ratio = -gmtl::dot(normal_at_intersec, feeler .dir);
 					float fresnel = mix(std::pow(1 - facing_ratio, 1), 0, .1f);
-
-					//occlusion_factor = 0.0;
 					occlusion_factor = (1 - fresnel) * o->material().transparency;
 					break;
 				}
@@ -149,11 +52,6 @@ public:
 			gmtl::Vec3d light_dir = light->pos - intersec_point;
 			gmtl::normalize(light_dir);
 			diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
-
-			//gmtl::Vec3d Rm = ((2 * gmtl::dot(normal, light_dir) * normal) - light_dir);
-			//gmtl::normalize(intersec_point);
-			//spec_fctr = std::abs(gmtl::dot(Rm, -intersec_point));
-			
 
 			// Phong reflection model
 			double  r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr) * occlusion_factor;
@@ -181,8 +79,6 @@ protected:
 
 	DiffuseMaterial material_;
 	Light ambient_light_;
-	// debugging purpose
-	std::string name;
 };
 
 
@@ -190,7 +86,7 @@ class Plane : public Object {
 public:
 	Plane(gmtl::Vec3d origin, gmtl::Vec3d normal,
 		DiffuseMaterial material, Light ka) :
-		Object(material, ka, "Plane"),
+		Object(material, ka),
 		origin_(origin),
 		normal_(normal)
 	{
@@ -227,7 +123,7 @@ class Sphere : public Object {
 public:
 	Sphere(gmtl::Vec3d center, float radius,
 		DiffuseMaterial material, Light ka) :
-		Object(material, ka, "Sphere"),
+		Object(material, ka),
 		center_(center),
 		radius_(radius)
 	{}

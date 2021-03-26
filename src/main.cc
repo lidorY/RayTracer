@@ -103,7 +103,7 @@ Color TraceRay(
 		gmtl::normalize(ref_dir);
 		double bias = 1e-4;
 		gmtl::Vec3d moved_hit = intersection_point + normal_at_intersec * bias;
-		Ray reflection_ray{ moved_hit, ref_dir + moved_hit };
+		Ray reflection_ray{ position{moved_hit}, direction{ref_dir} };
 		ref_value = TraceRay(bgr, reflection_ray, point_lights, colliders, depth + 1);
 	}
 
@@ -117,7 +117,7 @@ Color TraceRay(
 			double bias = 1e-4;
 			gmtl::Vec3d moved_hit = intersection_point - normal_at_intersec * bias;
 
-			Ray t_ray = { moved_hit, t_dir + moved_hit };
+			Ray t_ray = { position{moved_hit}, direction{t_dir} };
 			t_value = TraceRay(bgr, t_ray, point_lights, colliders, depth + 1);
 		} 
 		// K less than/equal zero means no refraction occured (total reflection)
