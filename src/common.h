@@ -14,7 +14,10 @@ struct direction {
 };
 
 struct Ray {
-
+	// Basic Ray structure.
+	// Just containig directiona and start position
+	// Using the structs above, I can instantiate 
+	// rays based on 2 points in space or an origin and direction
 	Ray(const position& p0, const direction& dir) :
 		origin(p0.value) {
 		this->dir = (dir.value);
@@ -42,6 +45,8 @@ struct Ray {
 
 
 struct Light {
+	// Basic light type in scene.
+	// With only color and intensity it describes ambient ligth
 	Light(Color c, float intensity) :
 		light_color(c), intensity(intensity) {}
 	Color light_color;
@@ -50,6 +55,7 @@ struct Light {
 
 
 struct PointLight : public Light {
+	// Point light implementation
 	PointLight(Color c, float intensity, gmtl::Vec3d pos) :
 		Light(c, intensity),
 		pos(pos) {}

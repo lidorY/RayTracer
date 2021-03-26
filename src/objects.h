@@ -20,6 +20,8 @@ public:
 	Color Shade(const std::vector<std::unique_ptr<PointLight>>& lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders, gmtl::Vec3d normal) {
 
+		// Generate the relevant color of a intersection point in the scene
+
 		// Accumulate the light color from the lights in the scene
 		Color res{ 0, 0, 0 };
 		for (auto&& light : lights) {
@@ -44,11 +46,11 @@ public:
 				}
 			}
 
+			// Phong reflection model
 			gmtl::Vec3d light_dir = light->pos - intersec_point;
 			gmtl::normalize(light_dir);
 			diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
 
-			// Phong reflection model
 			double r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr) * occlusion_factor;
 			double g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr) * occlusion_factor;
 			double b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr) * occlusion_factor;
@@ -83,10 +85,8 @@ public:
 		DiffuseMaterial material, Light ka) :
 		Object(material, ka),
 		origin_(origin),
-		normal_(normal)
-	{
-		gmtl::normalize(normal_);
-	}
+		normal_(gmtl::makeNormal(normal))
+	{}
 
 	std::optional<double> TestCollision(const Ray& r) const override {
 		double denom = gmtl::dot(r.dir, normal_);

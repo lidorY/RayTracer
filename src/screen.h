@@ -10,6 +10,12 @@
 #include "color.h"
 
 class Screen {
+	// Class defining the Screen inside the CMD window
+	// We use it in order to paint a bitmap picture inside it.
+	// This class exposes functions to set each pixel, draw the entire buffer
+	// And reset it to a certain color.
+	// In order to support flowing animations too, a double buffer swap 
+	// mechanism is implemented.
 
 public:
 	Screen(std::size_t width, std::size_t height, HDC d) :

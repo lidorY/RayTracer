@@ -10,6 +10,11 @@
 
 
 class ViewFrustum {
+	// View Frustum. Defines the Camera positioning and
+	// Its FOV. 
+	// We can use it in order to map between pixel on screen to
+	// a Ray definition from camera to the scene.
+
 	const double TO_RAD = 3.141592653589793 / 180.;
 public:
 	ViewFrustum(std::size_t scr_width,
