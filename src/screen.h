@@ -57,8 +57,7 @@ public:
 			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 1] = c.green();
 			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 2] = c.red();
 			depth_buffer_[y * width_ + x] = z;
-			//DEBUG
-			//SetPixel(device, x, 512 - y, COLORREF(RGB(255, 255, 255)));
+
 		}
 		else if (depth_buffer_[y * width_ + x] == z) {
 			(*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0] = max(c.blue(), (*buffers_[curr_buf])[channels_ * (y * width_ + x) + 0]);

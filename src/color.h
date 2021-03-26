@@ -64,18 +64,17 @@ private:
 };
 
 struct DiffuseMaterial {
-	Color kd;
-	Color ka;
-	Color ks;
-	float specular_coef;
-	float spec_intensity;
+	Color kd; // Diffuse coeffecient
+	Color ka; // Ambient coeffecient
+	Color ks; // Specular coeffecient
 
-	float reflectivity = 1.f;
-	float transparency = 0.f;
+	double reflectivity = 1.0;
+	double transparency = 0.0;
+	double refraction_index = 1.0;
 };
 
-
-float mix(const float a, const float b, const float amount) {
+// Simple mixing function
+float mix(const double a, const double b, const double amount) {
 	return (b * amount) + a * (1 - amount);
 }
 

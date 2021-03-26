@@ -1,15 +1,12 @@
 #ifndef OBJECTS_H
 #define OBJECTS_H
 
-
 #include <string>
 #include <optional>
-
 
 #include "common.h"
 #include "color.h"
 
-static const unsigned int MAX_RAY_DEPTH = 2;
 
 class Object {
 public:
@@ -20,12 +17,10 @@ public:
 
 	virtual std::optional<double> TestCollision(const Ray& r) const = 0;
 
-
 	Color Shade(const std::vector<std::unique_ptr<PointLight>>& lights, gmtl::Vec3d intersec_point,
 		const std::vector<std::unique_ptr<Object>>& colliders, gmtl::Vec3d normal) {
 
 		// Accumulate the light color from the lights in the scene
-
 		Color res{ 0, 0, 0 };
 		for (auto&& light : lights) {
 			double diff_fctr{ 0.0 };
@@ -42,8 +37,8 @@ public:
 				auto p = o->TestCollision(feeler);
 				if (p.has_value()) {
 					auto normal_at_intersec = o->calcNormal(feeler.origin + p.value() * feeler.dir);
-					float facing_ratio = -gmtl::dot(normal_at_intersec, feeler .dir);
-					float fresnel = mix(std::pow(1 - facing_ratio, 1), 0, .1f);
+					double facing_ratio = -gmtl::dot(normal_at_intersec, feeler .dir);
+					double fresnel = mix(std::pow(1 - facing_ratio, 1), 0, .1f);
 					occlusion_factor = (1 - fresnel) * o->material().transparency;
 					break;
 				}
@@ -54,9 +49,9 @@ public:
 			diff_fctr = std::abs(gmtl::dot(normal, light_dir) / (gmtl::length(normal) * gmtl::length(light_dir)));
 
 			// Phong reflection model
-			double  r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr) * occlusion_factor;
-			double  g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr) * occlusion_factor;
-			double  b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr) * occlusion_factor;
+			double r_diff = (material_.kd.r() * (light->light_color.r() * light->intensity) * diff_fctr) * occlusion_factor;
+			double g_diff = (material_.kd.g() * (light->light_color.g() * light->intensity) * diff_fctr) * occlusion_factor;
+			double b_diff = (material_.kd.b() * (light->light_color.b() * light->intensity) * diff_fctr) * occlusion_factor;
 
 			res.r(res.r() + r_diff);
 			res.b(res.b() + b_diff);
@@ -93,8 +88,7 @@ public:
 		gmtl::normalize(normal_);
 	}
 
-	virtual std::optional<double> TestCollision(const Ray& r) const {
-
+	std::optional<double> TestCollision(const Ray& r) const override {
 		double denom = gmtl::dot(r.dir, normal_);
 		if (std::abs(denom) > 1e-6) {
 			// Avoid zero division
@@ -107,10 +101,8 @@ public:
 		return std::nullopt;
 	}
 
-	virtual gmtl::Vec3d calcNormal(gmtl::Vec3d point) {
-		// TODO: Add here a throwing test?
-		gmtl::normalize(normal_);
-		return normal_;
+	gmtl::Vec3d calcNormal(gmtl::Vec3d point) override {
+		return gmtl::makeNormal(normal_);
 	}
 private:
 
@@ -118,7 +110,7 @@ private:
 	gmtl::Vec3d normal_;
 };
 
-// Basic starting object
+
 class Sphere : public Object {
 public:
 	Sphere(gmtl::Vec3d center, float radius,
@@ -146,11 +138,7 @@ public:
 	}
 
 	gmtl::Vec3d calcNormal(gmtl::Vec3d point) override {
-		// TODO: not effecient, should be using a returning function 
-		// so it will opt to move semantics..
-		gmtl::Vec3d normal = point - center_;
-		gmtl::normalize(normal);
-		return normal;
+		return gmtl::makeNormal(gmtl::Vec3d{ point - center_ });
 	}
 private:
 
