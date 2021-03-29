@@ -1,7 +1,7 @@
 # RayTracer
 Basic ray-tracing study project.
-This program renders 3D, code defined, 3D scenes with basic local illumination
-models.<br>
+This program renders 3D code defined scenes with a basic local illumination
+model.<br>
 
 For a camera, representing a "human eye", with a configuearble FOV and screen dimensions the software generates an image for the defined scene.
 This is done by simulating a recursive trace of light rays from the camera throughout the scene, bouncing them around and on or through the surface of objects.
