@@ -40,7 +40,11 @@ Compiled and tested on MSVC 2019.
 
 This code requires `<Windows.h>` header file! --> Windows only.
 
-- Create a build folder
-- CD into this folder
-- Run CMake in the folder using relevant MSVC generator - `cmake .. -G "Visual Studio 16 2019"`
+Run in CMD console in the source folder:
+```bat 
+mkdir build
+cd build
+cmake .. -G "Visual Studio 16 2019"
+```
+
 
