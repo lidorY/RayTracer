@@ -47,7 +47,7 @@ cd build
 cmake .. -G "Visual Studio 16 2019"
 ```
 
-# Future possible improvents
+# Future possible improvements
   - Textures and normal maps
   - Caustics
   - Global Illumination model 
