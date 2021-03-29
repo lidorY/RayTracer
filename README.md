@@ -40,7 +40,7 @@ Compiled and tested on MSVC 2019.
 
 This code requires `<Windows.h>` header file! --> Windows only.
 
-Run in CMD console in the source folder:
+Run those commands in a CMD console inside the source folder:
 ```bat 
 mkdir build
 cd build
